@@ -53,6 +53,9 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   const { connection } = useConnection();
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
+  const logFn = useServerFn(logSwap);
+  const [lastError, setLastError] = useState<string | null>(null);
+
 
   useEffect(() => {
     setQuote(null);
