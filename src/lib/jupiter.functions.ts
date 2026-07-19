@@ -93,6 +93,7 @@ const QuoteSchema = z.object({
   outputMint: mint,
   amount,
   slippageBps: z.number().int().min(1).max(5000),
+  userPublicKey: mint.optional(),
 });
 
 const SwapSchema = z.object({
@@ -108,6 +109,7 @@ export const getJupiterQuote = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => QuoteSchema.parse(d))
   .handler(async ({ data }) => {
     rateLimit("quote");
+    const feeBps = await feeBpsForOwner(data.userPublicKey);
     const url = new URL(`${JUPITER()}/quote`);
     url.searchParams.set("inputMint", data.inputMint);
     url.searchParams.set("outputMint", data.outputMint);
@@ -116,22 +118,25 @@ export const getJupiterQuote = createServerFn({ method: "POST" })
     url.searchParams.set("onlyDirectRoutes", "false");
     url.searchParams.set("asLegacyTransaction", "false");
     if (PLATFORM_FEE_WALLET()) {
-      url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
+      url.searchParams.set("platformFeeBps", String(feeBps));
     }
     const res = await fetch(url.toString());
     if (!res.ok) {
       const t = await res.text();
       throw new Error(`Jupiter quote failed: ${res.status} ${t}`);
     }
-    return (await res.json()) as any;
+    const json = (await res.json()) as any;
+    return { ...json, _feeBps: feeBps };
   });
 
 export const getJupiterSwap = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => SwapSchema.parse(d))
   .handler(async ({ data }) => {
     rateLimit("swap");
+    // Strip our internal marker before forwarding to Jupiter
+    const { _feeBps, ...cleanQuote } = data.quoteResponse as any;
     const body: Record<string, unknown> = {
-      quoteResponse: data.quoteResponse,
+      quoteResponse: cleanQuote,
       userPublicKey: data.userPublicKey,
       wrapAndUnwrapSol: data.wrapAndUnwrapSol ?? true,
       dynamicComputeUnitLimit: true,
@@ -151,6 +156,20 @@ export const getJupiterSwap = createServerFn({ method: "POST" })
     }
     return (await res.json()) as { swapTransaction: string; lastValidBlockHeight: number };
   });
+
+export const getSpddTier = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ userPublicKey: mint }).parse(d))
+  .handler(async ({ data }) => {
+    const balance = await getSpddBalance(data.userPublicKey);
+    const isVip = balance >= SPDD_VIP_THRESHOLD;
+    return {
+      balance,
+      isVip,
+      feeBps: isVip ? VIP_FEE_BPS : PLATFORM_FEE_BPS,
+      threshold: SPDD_VIP_THRESHOLD,
+    };
+  });
+
 
 export const logSwap = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
