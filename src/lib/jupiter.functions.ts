@@ -9,7 +9,47 @@ const JUPITER = () =>
   "https://quote-api.jup.ag/v6";
 
 const PLATFORM_FEE_BPS = 50; // 0.5%
+const VIP_FEE_BPS = 30; // 0.3% for SPDD holders
+const SPDD_MINT = "C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump";
+const SPDD_VIP_THRESHOLD = 100_000; // whole tokens
 const PLATFORM_FEE_WALLET = () => process.env.PLATFORM_FEE_WALLET || "";
+
+const RPC = () =>
+  process.env.RPC_URL ||
+  process.env.VITE_RPC_URL ||
+  process.env.SOLANA_RPC_URL ||
+  "https://api.mainnet-beta.solana.com";
+
+async function getSpddBalance(owner: string): Promise<number> {
+  try {
+    const res = await fetch(RPC(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getTokenAccountsByOwner",
+        params: [owner, { mint: SPDD_MINT }, { encoding: "jsonParsed" }],
+      }),
+    });
+    const j: any = await res.json();
+    const accounts = j?.result?.value ?? [];
+    let total = 0;
+    for (const a of accounts) {
+      const ui = a?.account?.data?.parsed?.info?.tokenAmount?.uiAmount;
+      if (typeof ui === "number") total += ui;
+    }
+    return total;
+  } catch {
+    return 0;
+  }
+}
+
+async function feeBpsForOwner(owner?: string): Promise<number> {
+  if (!owner) return PLATFORM_FEE_BPS;
+  const bal = await getSpddBalance(owner);
+  return bal >= SPDD_VIP_THRESHOLD ? VIP_FEE_BPS : PLATFORM_FEE_BPS;
+}
 
 // -------- Rate limiting (in-memory, per worker instance) --------
 type Bucket = { count: number; resetAt: number };
