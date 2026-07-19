@@ -14,7 +14,12 @@ export function DexApp() {
 
   useEffect(() => {
     setMounted(true);
-    getRpcUrl().then((r) => setRpc(r.url)).catch(() => {});
+    getRpcUrl()
+      .then((r) => {
+        const url = r.url.startsWith("http") ? r.url : `${window.location.origin}${r.url}`;
+        setRpc(url);
+      })
+      .catch(() => {});
   }, []);
 
   if (!mounted) {

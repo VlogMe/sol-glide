@@ -1,11 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 
-const JUPITER = () => process.env.JUPITER_API_URL || "https://quote-api.jup.ag/v6";
+const JUPITER = () =>
+  process.env.JUPITER_BASE ||
+  process.env.VITE_JUPITER_BASE ||
+  process.env.JUPITER_API_URL ||
+  "https://quote-api.jup.ag/v6";
+
+const RPC = () =>
+  process.env.RPC_URL ||
+  process.env.VITE_RPC_URL ||
+  process.env.SOLANA_RPC_URL ||
+  "https://api.mainnet-beta.solana.com";
 
 export type QuoteInput = {
   inputMint: string;
   outputMint: string;
-  amount: string; // raw integer string
+  amount: string;
   slippageBps: number;
 };
 
@@ -54,6 +64,20 @@ export const getJupiterSwap = createServerFn({ method: "POST" })
     return (await res.json()) as { swapTransaction: string; lastValidBlockHeight: number };
   });
 
+// Proxy RPC through server so the frontend never sees the private URL.
+export const rpcProxy = createServerFn({ method: "POST" })
+  .inputValidator((d: { body: string }) => d)
+  .handler(async ({ data }) => {
+    const res = await fetch(RPC(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: data.body,
+    });
+    const text = await res.text();
+    return { status: res.status, body: text };
+  });
+
+// Kept for backward-compat; returns a same-origin proxy endpoint, not the raw RPC URL.
 export const getRpcUrl = createServerFn({ method: "GET" }).handler(async () => {
-  return { url: process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com" };
+  return { url: "/api/rpc" };
 });
