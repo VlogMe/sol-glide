@@ -285,10 +285,37 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
         )}
       </div>
 
-      <p className="mt-3 flex items-start gap-1.5 text-[11px] text-muted-foreground">
-        <Info className="h-3 w-3 mt-0.5 shrink-0" />
-        Non-custodial. Powered by Jupiter aggregator across 20+ Solana DEXes.
-      </p>
+      {lastError && (
+        <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <div className="flex-1">{lastError}</div>
+          <button
+            onClick={() => {
+              setLastError(null);
+              setAmount((a) => a);
+              if (connected && quote) handleSwap();
+            }}
+            className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-1 hover:bg-destructive/20"
+          >
+            <RefreshCw className="h-3 w-3" /> Retry
+          </button>
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <Info className="h-3 w-3" /> Non-custodial · 0.5% platform fee
+        </span>
+        <a
+          href="https://jup.ag"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 rounded-full border border-border/70 px-2 py-0.5 hover:border-primary/60"
+        >
+          Powered by Jupiter
+        </a>
+      </div>
+
     </div>
   );
 }
