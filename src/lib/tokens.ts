@@ -4,6 +4,8 @@ export type Token = {
   mint: string;
   decimals: number;
   logoURI: string;
+  /** true for tokens loaded ad-hoc by mint address (possibly low liquidity / bonding curve) */
+  warn?: boolean;
 };
 
 export const TOKENS: Record<string, Token> = {
