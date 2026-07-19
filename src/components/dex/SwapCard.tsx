@@ -334,7 +334,12 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
 
       <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
-          <Info className="h-3 w-3" /> Non-custodial · 0.5% platform fee
+          <Info className="h-3 w-3" /> Non-custodial ·{" "}
+          {isVip ? (
+            <span className="text-success font-medium">0.3% VIP Fee (SPDD Holder)</span>
+          ) : (
+            <>0.5% Platform Fee</>
+          )}
         </span>
         <a
           href="https://jup.ag"
