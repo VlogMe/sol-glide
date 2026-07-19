@@ -65,14 +65,25 @@ export const TOKENS: Record<string, Token> = {
     decimals: 9,
     logoURI: "https://metadata.jito.network/token/jto/image",
   },
+  SPDD: {
+    symbol: "SPDD",
+    name: "SolPitch (VIP Token)",
+    mint: "C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump",
+    decimals: 6,
+    logoURI: "https://img-v1.raydium.io/icon/C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump.png",
+  },
 };
 
 export const TOKEN_LIST = Object.values(TOKENS);
 
-export const POPULAR_PAIRS = [
+export const SPDD_MINT = "C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump";
+
+export const POPULAR_PAIRS: { from: string; to: string; vip?: boolean }[] = [
+  { from: "SPDD", to: "SOL", vip: true },
   { from: "SOL", to: "USDC" },
   { from: "BONK", to: "SOL" },
   { from: "WIF", to: "USDC" },
   { from: "JUP", to: "SOL" },
   { from: "PYTH", to: "USDC" },
+  { from: "JTO", to: "USDC" },
 ];
