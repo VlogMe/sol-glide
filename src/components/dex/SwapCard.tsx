@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownUp, Loader2, Settings2, Info } from "lucide-react";
+import { ArrowDownUp, Loader2, Settings2, Info, RefreshCw } from "lucide-react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { VersionedTransaction } from "@solana/web3.js";
@@ -7,9 +7,28 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 
 import { TOKENS, type Token } from "@/lib/tokens";
-import { getJupiterQuote, getJupiterSwap } from "@/lib/jupiter.functions";
+import { getJupiterQuote, getJupiterSwap, logSwap } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+function friendlyError(raw: string): string {
+  const s = raw.toLowerCase();
+  if (s.includes("rate limit")) return raw;
+  if (s.includes("0x1") || s.includes("insufficient") || s.includes("insufficient lamports"))
+    return "Insufficient funds for this swap (including network fees).";
+  if (s.includes("slippage") || s.includes("6001") || s.includes("0x1771"))
+    return "Price moved beyond your slippage tolerance. Increase slippage or try again.";
+  if (s.includes("blockhash") || s.includes("expired") || s.includes("block height exceeded"))
+    return "Transaction expired before confirmation. Please retry.";
+  if (s.includes("timeout") || s.includes("timed out") || s.includes("failed to fetch"))
+    return "Network timeout talking to Solana RPC. Please retry.";
+  if (s.includes("user rejected") || s.includes("rejected the request"))
+    return "You rejected the transaction in your wallet.";
+  if (s.includes("could not find any route") || s.includes("no route"))
+    return "No route available for this pair right now.";
+  return raw.length > 160 ? raw.slice(0, 160) + "…" : raw;
+}
+
 
 const PLATFORM_FEE_BPS = 50; // 0.5% displayed to users
 
