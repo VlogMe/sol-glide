@@ -1,8 +1,10 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
-import { createRequire } from "node:module";
+import path from "node:path";
 
-const require = createRequire(import.meta.url);
-const rpcWebsocketsBrowser = require.resolve("rpc-websockets/dist/index.browser.mjs");
+const rpcWebsocketsBrowser = path.resolve(
+  process.cwd(),
+  "node_modules/rpc-websockets/dist/index.browser.mjs",
+);
 
 export default defineConfig({
   tanstackStart: {
