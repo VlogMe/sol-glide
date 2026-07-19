@@ -1,24 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { DexApp } from "@/components/dex/DexApp";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
   component: Index,
+  head: () => ({
+    meta: [
+      { title: "solpitch — Fastest Solana DEX Aggregator" },
+      {
+        name: "description",
+        content:
+          "Non-custodial Solana DEX aggregator. Best-price swaps routed across 20+ liquidity sources via Jupiter. Sub-second execution, 0.5% flat fee.",
+      },
+      { property: "og:title", content: "solpitch — Fastest Solana DEX Aggregator" },
+      { property: "og:description", content: "Non-custodial swaps on Solana. Best price, sub-second." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
+  return <DexApp />;
 }
