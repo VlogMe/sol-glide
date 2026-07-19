@@ -59,6 +59,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
 
   useEffect(() => {
     setQuote(null);
+    setLastError(null);
     if (debounce.current) clearTimeout(debounce.current);
     const num = Number(amount);
     if (!amount || !isFinite(num) || num <= 0) return;
