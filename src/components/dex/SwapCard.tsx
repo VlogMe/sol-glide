@@ -30,7 +30,8 @@ function friendlyError(raw: string): string {
 }
 
 
-const PLATFORM_FEE_BPS = 50; // 0.5% displayed to users
+const NORMAL_FEE_BPS = 50;
+const VIP_FEE_BPS = 30;
 
 function fmt(n: number, max = 6) {
   if (!isFinite(n)) return "0";
