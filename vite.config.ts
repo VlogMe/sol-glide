@@ -1,4 +1,8 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const rpcWebsocketsBrowser = require.resolve("rpc-websockets/dist/index.browser.mjs");
 
 export default defineConfig({
   tanstackStart: {
@@ -18,24 +22,11 @@ export default defineConfig({
       ],
     },
     optimizeDeps: {
-      include: [
-        "@solana/web3.js",
-        "rpc-websockets",
-        "@solana/wallet-adapter-base",
-        "@solana/wallet-adapter-react",
-        "@solana/wallet-adapter-react-ui",
-      ],
+      include: ["@solana/web3.js", "rpc-websockets"],
     },
     resolve: {
       alias: [
-        {
-          find: /^rpc-websockets\/dist\/lib\/client$/,
-          replacement: "rpc-websockets/dist/index.browser.mjs",
-        },
-        {
-          find: /^rpc-websockets\/dist\/lib\/client\/websocket$/,
-          replacement: "rpc-websockets/dist/index.browser.mjs",
-        },
+        { find: /^rpc-websockets$/, replacement: rpcWebsocketsBrowser },
       ],
     },
   },
