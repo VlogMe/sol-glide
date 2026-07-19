@@ -264,8 +264,10 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
             </span>
           </Row>
           <Row label="Slippage">{(slippageBps / 100).toFixed(2)}%</Row>
-          <Row label={`Platform fee (${PLATFORM_FEE_BPS / 100}%)`}>
-            {fmt(feeAmount)} {from.symbol}
+          <Row label={isVip ? "VIP fee (0.30%)" : "Platform fee (0.50%)"}>
+            <span className={isVip ? "text-success font-medium" : undefined}>
+              {fmt(feeAmount)} {from.symbol}
+            </span>
           </Row>
           {routeLabels.length > 0 && (
             <Row label="Route">
