@@ -6,7 +6,19 @@ const JUPITER = () =>
   process.env.JUPITER_BASE ||
   process.env.VITE_JUPITER_BASE ||
   process.env.JUPITER_API_URL ||
-  "https://quote-api.jup.ag/v6";
+  "https://lite-api.jup.ag/swap/v1";
+
+async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 12000): Promise<Response> {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ctl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+const JUP_UNREACHABLE = "Unable to get quote. Please try again.";
 
 const PLATFORM_FEE_BPS = 50; // 0.5%
 const VIP_FEE_BPS = 30; // 0.3% for SPDD holders
@@ -120,10 +132,16 @@ export const getJupiterQuote = createServerFn({ method: "POST" })
     if (PLATFORM_FEE_WALLET()) {
       url.searchParams.set("platformFeeBps", String(feeBps));
     }
-    const res = await fetch(url.toString());
+    let res: Response;
+    try {
+      res = await fetchWithTimeout(url.toString(), { headers: { accept: "application/json" } });
+    } catch {
+      throw new Error(JUP_UNREACHABLE);
+    }
     if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`Jupiter quote failed: ${res.status} ${t}`);
+      const t = await res.text().catch(() => "");
+      if (res.status >= 500) throw new Error(JUP_UNREACHABLE);
+      throw new Error(`Jupiter quote failed: ${res.status} ${t.slice(0, 200)}`);
     }
     const json = (await res.json()) as any;
     return { ...json, _feeBps: feeBps };
@@ -145,14 +163,20 @@ export const getJupiterSwap = createServerFn({ method: "POST" })
     if (PLATFORM_FEE_WALLET()) {
       body.feeAccount = PLATFORM_FEE_WALLET();
     }
-    const res = await fetch(`${JUPITER()}/swap`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetchWithTimeout(`${JUPITER()}/swap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", accept: "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      throw new Error(JUP_UNREACHABLE);
+    }
     if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`Jupiter swap failed: ${res.status} ${t}`);
+      const t = await res.text().catch(() => "");
+      if (res.status >= 500) throw new Error(JUP_UNREACHABLE);
+      throw new Error(`Jupiter swap failed: ${res.status} ${t.slice(0, 200)}`);
     }
     return (await res.json()) as { swapTransaction: string; lastValidBlockHeight: number };
   });
