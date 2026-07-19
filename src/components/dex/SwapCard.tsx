@@ -77,7 +77,9 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
         setQuote(q);
       } catch (e: any) {
         console.error(e);
-        toast.error(e?.message || "Failed to fetch quote");
+        const msg = friendlyError(String(e?.message || "Failed to fetch quote"));
+        setLastError(msg);
+        toast.error(msg);
       } finally {
         setLoading(false);
       }
