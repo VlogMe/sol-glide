@@ -109,6 +109,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       return;
     }
     if (!quote) return;
+    setLastError(null);
     try {
       setSwapping(true);
       const { swapTransaction } = await swapFn({
@@ -131,15 +132,27 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       const latest = await connection.getLatestBlockhash();
       await connection.confirmTransaction({ signature: sig, ...latest }, "confirmed");
       toast.success("Swap confirmed ✔");
+      logFn({
+        data: {
+          signature: sig,
+          inputMint: from.mint,
+          outputMint: to.mint,
+          inAmount: String(quote.inAmount ?? ""),
+          outAmount: String(quote.outAmount ?? ""),
+        },
+      }).catch(() => {});
       setAmount("");
       setQuote(null);
     } catch (e: any) {
       console.error(e);
-      toast.error(e?.message || "Swap failed");
+      const msg = friendlyError(String(e?.message || "Swap failed"));
+      setLastError(msg);
+      toast.error(msg);
     } finally {
       setSwapping(false);
     }
   };
+
 
   const disabled = !amount || !quote || loading || swapping;
 
