@@ -182,15 +182,23 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <h3 className="font-display text-lg font-semibold">Swap</h3>
-          {isVip && (
+          {isVip ? (
             <span
-              title={`SPDD balance: ${tier?.balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-              className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success"
+              title={`SPDD balance: ${tier?.balance.toLocaleString(undefined, { maximumFractionDigits: 0 })} — 0.30% VIP fee active (40% discount)`}
+              className="inline-flex items-center gap-1 rounded-full border border-success/50 bg-success/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-success shadow-[0_0_12px_hsl(var(--success)/0.35)]"
             >
-              ★ VIP · SPDD
+              ★ VIP · SPDD 0.30%
+            </span>
+          ) : (
+            <span
+              title="Hold 100,000+ $SPDD for 0.30% fee (40% discount)"
+              className="hidden sm:inline-flex items-center gap-1 rounded-full border border-border bg-secondary/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground cursor-help"
+            >
+              Hold 100k SPDD → 0.30%
             </span>
           )}
         </div>
+
         <Popover>
           <PopoverTrigger asChild>
             <button className="p-2 rounded-lg hover:bg-secondary/60 text-muted-foreground">
@@ -219,6 +227,15 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
           </PopoverContent>
         </Popover>
       </div>
+
+      {(from.warn || to.warn) && (
+        <div className="mb-3 flex items-start gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs text-yellow-200">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            Low liquidity / bonding-curve token — trade carefully. Price impact and slippage may be high.
+          </span>
+        </div>
+      )}
 
       <div className="space-y-2">
         <div className="rounded-2xl bg-secondary/40 border border-border p-4">
