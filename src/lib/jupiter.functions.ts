@@ -9,7 +9,47 @@ const JUPITER = () =>
   "https://quote-api.jup.ag/v6";
 
 const PLATFORM_FEE_BPS = 50; // 0.5%
+const VIP_FEE_BPS = 30; // 0.3% for SPDD holders
+const SPDD_MINT = "C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump";
+const SPDD_VIP_THRESHOLD = 100_000; // whole tokens
 const PLATFORM_FEE_WALLET = () => process.env.PLATFORM_FEE_WALLET || "";
+
+const RPC = () =>
+  process.env.RPC_URL ||
+  process.env.VITE_RPC_URL ||
+  process.env.SOLANA_RPC_URL ||
+  "https://api.mainnet-beta.solana.com";
+
+async function getSpddBalance(owner: string): Promise<number> {
+  try {
+    const res = await fetch(RPC(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getTokenAccountsByOwner",
+        params: [owner, { mint: SPDD_MINT }, { encoding: "jsonParsed" }],
+      }),
+    });
+    const j: any = await res.json();
+    const accounts = j?.result?.value ?? [];
+    let total = 0;
+    for (const a of accounts) {
+      const ui = a?.account?.data?.parsed?.info?.tokenAmount?.uiAmount;
+      if (typeof ui === "number") total += ui;
+    }
+    return total;
+  } catch {
+    return 0;
+  }
+}
+
+async function feeBpsForOwner(owner?: string): Promise<number> {
+  if (!owner) return PLATFORM_FEE_BPS;
+  const bal = await getSpddBalance(owner);
+  return bal >= SPDD_VIP_THRESHOLD ? VIP_FEE_BPS : PLATFORM_FEE_BPS;
+}
 
 // -------- Rate limiting (in-memory, per worker instance) --------
 type Bucket = { count: number; resetAt: number };
@@ -53,6 +93,7 @@ const QuoteSchema = z.object({
   outputMint: mint,
   amount,
   slippageBps: z.number().int().min(1).max(5000),
+  userPublicKey: mint.optional(),
 });
 
 const SwapSchema = z.object({
@@ -68,6 +109,7 @@ export const getJupiterQuote = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => QuoteSchema.parse(d))
   .handler(async ({ data }) => {
     rateLimit("quote");
+    const feeBps = await feeBpsForOwner(data.userPublicKey);
     const url = new URL(`${JUPITER()}/quote`);
     url.searchParams.set("inputMint", data.inputMint);
     url.searchParams.set("outputMint", data.outputMint);
@@ -76,22 +118,25 @@ export const getJupiterQuote = createServerFn({ method: "POST" })
     url.searchParams.set("onlyDirectRoutes", "false");
     url.searchParams.set("asLegacyTransaction", "false");
     if (PLATFORM_FEE_WALLET()) {
-      url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
+      url.searchParams.set("platformFeeBps", String(feeBps));
     }
     const res = await fetch(url.toString());
     if (!res.ok) {
       const t = await res.text();
       throw new Error(`Jupiter quote failed: ${res.status} ${t}`);
     }
-    return (await res.json()) as any;
+    const json = (await res.json()) as any;
+    return { ...json, _feeBps: feeBps };
   });
 
 export const getJupiterSwap = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => SwapSchema.parse(d))
   .handler(async ({ data }) => {
     rateLimit("swap");
+    // Strip our internal marker before forwarding to Jupiter
+    const { _feeBps, ...cleanQuote } = data.quoteResponse as any;
     const body: Record<string, unknown> = {
-      quoteResponse: data.quoteResponse,
+      quoteResponse: cleanQuote,
       userPublicKey: data.userPublicKey,
       wrapAndUnwrapSol: data.wrapAndUnwrapSol ?? true,
       dynamicComputeUnitLimit: true,
@@ -111,6 +156,20 @@ export const getJupiterSwap = createServerFn({ method: "POST" })
     }
     return (await res.json()) as { swapTransaction: string; lastValidBlockHeight: number };
   });
+
+export const getSpddTier = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ userPublicKey: mint }).parse(d))
+  .handler(async ({ data }) => {
+    const balance = await getSpddBalance(data.userPublicKey);
+    const isVip = balance >= SPDD_VIP_THRESHOLD;
+    return {
+      balance,
+      isVip,
+      feeBps: isVip ? VIP_FEE_BPS : PLATFORM_FEE_BPS,
+      threshold: SPDD_VIP_THRESHOLD,
+    };
+  });
+
 
 export const logSwap = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>

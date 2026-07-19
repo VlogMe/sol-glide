@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 
 import { TOKENS, type Token } from "@/lib/tokens";
-import { getJupiterQuote, getJupiterSwap, logSwap } from "@/lib/jupiter.functions";
+import { getJupiterQuote, getJupiterSwap, logSwap, getSpddTier } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -30,7 +30,8 @@ function friendlyError(raw: string): string {
 }
 
 
-const PLATFORM_FEE_BPS = 50; // 0.5% displayed to users
+const NORMAL_FEE_BPS = 50;
+const VIP_FEE_BPS = 30;
 
 function fmt(n: number, max = 6) {
   if (!isFinite(n)) return "0";
@@ -54,8 +55,24 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
   const logFn = useServerFn(logSwap);
+  const tierFn = useServerFn(getSpddTier);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [tier, setTier] = useState<{ isVip: boolean; balance: number; feeBps: number } | null>(null);
 
+  // Check SPDD tier on wallet connect
+  useEffect(() => {
+    if (!connected || !publicKey) {
+      setTier(null);
+      return;
+    }
+    const pk = publicKey.toBase58();
+    tierFn({ data: { userPublicKey: pk } })
+      .then((t) => setTier(t))
+      .catch(() => setTier(null));
+  }, [connected, publicKey, tierFn]);
+
+  const feeBps = tier?.feeBps ?? NORMAL_FEE_BPS;
+  const isVip = !!tier?.isVip;
 
   useEffect(() => {
     setQuote(null);
@@ -73,6 +90,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
             outputMint: to.mint,
             amount: raw,
             slippageBps,
+            ...(connected && publicKey ? { userPublicKey: publicKey.toBase58() } : {}),
           },
         });
         setQuote(q);
@@ -88,7 +106,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
     return () => {
       if (debounce.current) clearTimeout(debounce.current);
     };
-  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals]);
+  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals, connected, publicKey, isVip]);
 
   const outAmount = useMemo(() => {
     if (!quote?.outAmount) return "";
@@ -98,7 +116,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   const priceImpact = quote?.priceImpactPct ? Number(quote.priceImpactPct) * 100 : 0;
   const routeLabels: string[] = quote?.routePlan?.map((r: any) => r.swapInfo?.label).filter(Boolean) ?? [];
 
-  const feeAmount = amount ? Number(amount) * 0.005 : 0;
+  const feeAmount = amount ? Number(amount) * (feeBps / 10_000) : 0;
 
   const flip = () => {
     setFrom(to);
@@ -162,7 +180,17 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   return (
     <div className="glass rounded-3xl p-5 md:p-6 shadow-[var(--shadow-card)] w-full max-w-md mx-auto">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-display text-lg font-semibold">Swap</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-display text-lg font-semibold">Swap</h3>
+          {isVip && (
+            <span
+              title={`SPDD balance: ${tier?.balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+              className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success"
+            >
+              ★ VIP · SPDD
+            </span>
+          )}
+        </div>
         <Popover>
           <PopoverTrigger asChild>
             <button className="p-2 rounded-lg hover:bg-secondary/60 text-muted-foreground">
@@ -246,8 +274,10 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
             </span>
           </Row>
           <Row label="Slippage">{(slippageBps / 100).toFixed(2)}%</Row>
-          <Row label={`Platform fee (${PLATFORM_FEE_BPS / 100}%)`}>
-            {fmt(feeAmount)} {from.symbol}
+          <Row label={isVip ? "VIP fee (0.30%)" : "Platform fee (0.50%)"}>
+            <span className={isVip ? "text-success font-medium" : undefined}>
+              {fmt(feeAmount)} {from.symbol}
+            </span>
           </Row>
           {routeLabels.length > 0 && (
             <Row label="Route">
@@ -304,7 +334,12 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
 
       <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
-          <Info className="h-3 w-3" /> Non-custodial · 0.5% platform fee
+          <Info className="h-3 w-3" /> Non-custodial ·{" "}
+          {isVip ? (
+            <span className="text-success font-medium">0.3% VIP Fee (SPDD Holder)</span>
+          ) : (
+            <>0.5% Platform Fee</>
+          )}
         </span>
         <a
           href="https://jup.ag"
