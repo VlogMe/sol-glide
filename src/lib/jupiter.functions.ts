@@ -163,14 +163,20 @@ export const getJupiterSwap = createServerFn({ method: "POST" })
     if (PLATFORM_FEE_WALLET()) {
       body.feeAccount = PLATFORM_FEE_WALLET();
     }
-    const res = await fetch(`${JUPITER()}/swap`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetchWithTimeout(`${JUPITER()}/swap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", accept: "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      throw new Error(JUP_UNREACHABLE);
+    }
     if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`Jupiter swap failed: ${res.status} ${t}`);
+      const t = await res.text().catch(() => "");
+      if (res.status >= 500) throw new Error(JUP_UNREACHABLE);
+      throw new Error(`Jupiter swap failed: ${res.status} ${t.slice(0, 200)}`);
     }
     return (await res.json()) as { swapTransaction: string; lastValidBlockHeight: number };
   });
