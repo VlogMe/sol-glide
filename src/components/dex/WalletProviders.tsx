@@ -5,7 +5,7 @@ import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
 import { BackpackWalletAdapter } from "@solana/wallet-adapter-backpack";
 
-import "@solana/wallet-adapter-react-ui/styles.css";
+import "./wallet-adapter.css";
 
 export function WalletProviders({ children, rpcUrl }: { children: ReactNode; rpcUrl: string }) {
   const wallets = useMemo(
