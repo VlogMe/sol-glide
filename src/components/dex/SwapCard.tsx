@@ -106,7 +106,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
     return () => {
       if (debounce.current) clearTimeout(debounce.current);
     };
-  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals]);
+  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals, connected, publicKey, isVip]);
 
   const outAmount = useMemo(() => {
     if (!quote?.outAmount) return "";
@@ -116,7 +116,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   const priceImpact = quote?.priceImpactPct ? Number(quote.priceImpactPct) * 100 : 0;
   const routeLabels: string[] = quote?.routePlan?.map((r: any) => r.swapInfo?.label).filter(Boolean) ?? [];
 
-  const feeAmount = amount ? Number(amount) * 0.005 : 0;
+  const feeAmount = amount ? Number(amount) * (feeBps / 10_000) : 0;
 
   const flip = () => {
     setFrom(to);
