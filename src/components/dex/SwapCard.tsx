@@ -228,6 +228,15 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
         </Popover>
       </div>
 
+      {(from.warn || to.warn) && (
+        <div className="mb-3 flex items-start gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs text-yellow-200">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            Low liquidity / bonding-curve token — trade carefully. Price impact and slippage may be high.
+          </span>
+        </div>
+      )}
+
       <div className="space-y-2">
         <div className="rounded-2xl bg-secondary/40 border border-border p-4">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
