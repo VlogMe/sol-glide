@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownUp, Loader2, Settings2, Info } from "lucide-react";
+import { ArrowDownUp, Loader2, Settings2, Info, RefreshCw } from "lucide-react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { VersionedTransaction } from "@solana/web3.js";
@@ -7,9 +7,28 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 
 import { TOKENS, type Token } from "@/lib/tokens";
-import { getJupiterQuote, getJupiterSwap } from "@/lib/jupiter.functions";
+import { getJupiterQuote, getJupiterSwap, logSwap } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+function friendlyError(raw: string): string {
+  const s = raw.toLowerCase();
+  if (s.includes("rate limit")) return raw;
+  if (s.includes("0x1") || s.includes("insufficient") || s.includes("insufficient lamports"))
+    return "Insufficient funds for this swap (including network fees).";
+  if (s.includes("slippage") || s.includes("6001") || s.includes("0x1771"))
+    return "Price moved beyond your slippage tolerance. Increase slippage or try again.";
+  if (s.includes("blockhash") || s.includes("expired") || s.includes("block height exceeded"))
+    return "Transaction expired before confirmation. Please retry.";
+  if (s.includes("timeout") || s.includes("timed out") || s.includes("failed to fetch"))
+    return "Network timeout talking to Solana RPC. Please retry.";
+  if (s.includes("user rejected") || s.includes("rejected the request"))
+    return "You rejected the transaction in your wallet.";
+  if (s.includes("could not find any route") || s.includes("no route"))
+    return "No route available for this pair right now.";
+  return raw.length > 160 ? raw.slice(0, 160) + "…" : raw;
+}
+
 
 const PLATFORM_FEE_BPS = 50; // 0.5% displayed to users
 
@@ -34,9 +53,13 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   const { connection } = useConnection();
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
+  const logFn = useServerFn(logSwap);
+  const [lastError, setLastError] = useState<string | null>(null);
+
 
   useEffect(() => {
     setQuote(null);
+    setLastError(null);
     if (debounce.current) clearTimeout(debounce.current);
     const num = Number(amount);
     if (!amount || !isFinite(num) || num <= 0) return;
@@ -55,7 +78,9 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
         setQuote(q);
       } catch (e: any) {
         console.error(e);
-        toast.error(e?.message || "Failed to fetch quote");
+        const msg = friendlyError(String(e?.message || "Failed to fetch quote"));
+        setLastError(msg);
+        toast.error(msg);
       } finally {
         setLoading(false);
       }
@@ -87,6 +112,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       return;
     }
     if (!quote) return;
+    setLastError(null);
     try {
       setSwapping(true);
       const { swapTransaction } = await swapFn({
@@ -109,15 +135,27 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       const latest = await connection.getLatestBlockhash();
       await connection.confirmTransaction({ signature: sig, ...latest }, "confirmed");
       toast.success("Swap confirmed ✔");
+      logFn({
+        data: {
+          signature: sig,
+          inputMint: from.mint,
+          outputMint: to.mint,
+          inAmount: String(quote.inAmount ?? ""),
+          outAmount: String(quote.outAmount ?? ""),
+        },
+      }).catch(() => {});
       setAmount("");
       setQuote(null);
     } catch (e: any) {
       console.error(e);
-      toast.error(e?.message || "Swap failed");
+      const msg = friendlyError(String(e?.message || "Swap failed"));
+      setLastError(msg);
+      toast.error(msg);
     } finally {
       setSwapping(false);
     }
   };
+
 
   const disabled = !amount || !quote || loading || swapping;
 
@@ -247,10 +285,37 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
         )}
       </div>
 
-      <p className="mt-3 flex items-start gap-1.5 text-[11px] text-muted-foreground">
-        <Info className="h-3 w-3 mt-0.5 shrink-0" />
-        Non-custodial. Powered by Jupiter aggregator across 20+ Solana DEXes.
-      </p>
+      {lastError && (
+        <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <div className="flex-1">{lastError}</div>
+          <button
+            onClick={() => {
+              setLastError(null);
+              setAmount((a) => a);
+              if (connected && quote) handleSwap();
+            }}
+            className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-1 hover:bg-destructive/20"
+          >
+            <RefreshCw className="h-3 w-3" /> Retry
+          </button>
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <Info className="h-3 w-3" /> Non-custodial · 0.5% platform fee
+        </span>
+        <a
+          href="https://jup.ag"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 rounded-full border border-border/70 px-2 py-0.5 hover:border-primary/60"
+        >
+          Powered by Jupiter
+        </a>
+      </div>
+
     </div>
   );
 }
