@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 
 import { TOKENS, type Token } from "@/lib/tokens";
-import { getJupiterQuote, getJupiterSwap, logSwap } from "@/lib/jupiter.functions";
+import { getJupiterQuote, getJupiterSwap, logSwap, getSpddTier } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
