@@ -6,7 +6,19 @@ const JUPITER = () =>
   process.env.JUPITER_BASE ||
   process.env.VITE_JUPITER_BASE ||
   process.env.JUPITER_API_URL ||
-  "https://quote-api.jup.ag/v6";
+  "https://lite-api.jup.ag/swap/v1";
+
+async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 12000): Promise<Response> {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ctl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+const JUP_UNREACHABLE = "Unable to get quote. Please try again.";
 
 const PLATFORM_FEE_BPS = 50; // 0.5%
 const VIP_FEE_BPS = 30; // 0.3% for SPDD holders
