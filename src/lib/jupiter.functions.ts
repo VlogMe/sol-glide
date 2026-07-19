@@ -211,3 +211,58 @@ export const rpcProxy = createServerFn({ method: "POST" })
 export const getRpcUrl = createServerFn({ method: "GET" }).handler(async () => {
   return { url: "/api/rpc" };
 });
+
+// Resolve any Solana token by mint. Tries Jupiter token metadata first,
+// then falls back to RPC getTokenSupply so bonding-curve / low-liq mints still work.
+export const resolveTokenByMint = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ mint: mint }).parse(d))
+  .handler(async ({ data }) => {
+    rateLimit("resolve");
+    // 1) Jupiter token metadata (covers most listed tokens)
+    try {
+      const r = await fetch(`https://tokens.jup.ag/token/${data.mint}`);
+      if (r.ok) {
+        const j: any = await r.json();
+        if (j && j.address) {
+          return {
+            symbol: j.symbol || data.mint.slice(0, 4),
+            name: j.name || "Unknown token",
+            mint: j.address,
+            decimals: Number(j.decimals ?? 0),
+            logoURI: j.logoURI || "",
+            warn: false,
+            source: "jupiter" as const,
+          };
+        }
+      }
+    } catch {}
+
+    // 2) RPC fallback — decimals only, treat as untrusted / low-liquidity
+    try {
+      const res = await fetch(RPC(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "getTokenSupply",
+          params: [data.mint],
+        }),
+      });
+      const j: any = await res.json();
+      const decimals = j?.result?.value?.decimals;
+      if (typeof decimals === "number") {
+        return {
+          symbol: data.mint.slice(0, 4).toUpperCase(),
+          name: `Custom ${data.mint.slice(0, 4)}…${data.mint.slice(-4)}`,
+          mint: data.mint,
+          decimals,
+          logoURI: "",
+          warn: true,
+          source: "rpc" as const,
+        };
+      }
+    } catch {}
+
+    throw new Error("Token not found. Check the mint address.");
+  });
