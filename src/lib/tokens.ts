@@ -70,7 +70,7 @@ export const TOKENS: Record<string, Token> = {
     name: "SolPitch (VIP Token)",
     mint: "C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump",
     decimals: 6,
-    logoURI: "https://img-v1.raydium.io/icon/C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump.png",
+    logoURI: "/__l5e/assets-v1/1a99bfd5-e79a-43ba-b457-b8c8155ee15e/solpitch-logo.png",
   },
 };
 
