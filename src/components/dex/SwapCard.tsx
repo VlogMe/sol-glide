@@ -180,7 +180,17 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   return (
     <div className="glass rounded-3xl p-5 md:p-6 shadow-[var(--shadow-card)] w-full max-w-md mx-auto">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-display text-lg font-semibold">Swap</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-display text-lg font-semibold">Swap</h3>
+          {isVip && (
+            <span
+              title={`SPDD balance: ${tier?.balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+              className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success"
+            >
+              ★ VIP · SPDD
+            </span>
+          )}
+        </div>
         <Popover>
           <PopoverTrigger asChild>
             <button className="p-2 rounded-lg hover:bg-secondary/60 text-muted-foreground">
