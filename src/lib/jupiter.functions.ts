@@ -132,10 +132,16 @@ export const getJupiterQuote = createServerFn({ method: "POST" })
     if (PLATFORM_FEE_WALLET()) {
       url.searchParams.set("platformFeeBps", String(feeBps));
     }
-    const res = await fetch(url.toString());
+    let res: Response;
+    try {
+      res = await fetchWithTimeout(url.toString(), { headers: { accept: "application/json" } });
+    } catch {
+      throw new Error(JUP_UNREACHABLE);
+    }
     if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`Jupiter quote failed: ${res.status} ${t}`);
+      const t = await res.text().catch(() => "");
+      if (res.status >= 500) throw new Error(JUP_UNREACHABLE);
+      throw new Error(`Jupiter quote failed: ${res.status} ${t.slice(0, 200)}`);
     }
     const json = (await res.json()) as any;
     return { ...json, _feeBps: feeBps };
