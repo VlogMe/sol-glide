@@ -55,8 +55,24 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
   const logFn = useServerFn(logSwap);
+  const tierFn = useServerFn(getSpddTier);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [tier, setTier] = useState<{ isVip: boolean; balance: number; feeBps: number } | null>(null);
 
+  // Check SPDD tier on wallet connect
+  useEffect(() => {
+    if (!connected || !publicKey) {
+      setTier(null);
+      return;
+    }
+    const pk = publicKey.toBase58();
+    tierFn({ data: { userPublicKey: pk } })
+      .then((t) => setTier(t))
+      .catch(() => setTier(null));
+  }, [connected, publicKey, tierFn]);
+
+  const feeBps = tier?.feeBps ?? NORMAL_FEE_BPS;
+  const isVip = !!tier?.isVip;
 
   useEffect(() => {
     setQuote(null);
@@ -74,6 +90,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
             outputMint: to.mint,
             amount: raw,
             slippageBps,
+            ...(connected && publicKey ? { userPublicKey: publicKey.toBase58() } : {}),
           },
         });
         setQuote(q);
