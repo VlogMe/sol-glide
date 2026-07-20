@@ -15,10 +15,16 @@ function getProvider(): any | null {
 }
 
 export const WALLET_DISCONNECT_EVENT = "solpitch:wallet-disconnect";
+export const WALLET_CONNECT_EVENT = "solpitch:wallet-connect";
 
 function broadcastDisconnect() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(WALLET_DISCONNECT_EVENT));
+}
+
+function broadcastConnect(address: string) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(WALLET_CONNECT_EVENT, { detail: { address } }));
 }
 
 function short(addr: string) {
