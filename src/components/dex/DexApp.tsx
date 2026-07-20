@@ -122,11 +122,11 @@ function DexLayout({
                 Live on Solana mainnet
               </div>
               <h1 className="mt-5 text-5xl md:text-6xl font-bold leading-[1.05] tracking-tight">
-                The fastest way to <span className="gradient-text">swap on Solana</span>
+                Fast Non-Custodial <span className="gradient-text">Solana Swaps</span>
               </h1>
               <p className="mt-5 text-lg text-muted-foreground max-w-lg">
-                A non-custodial DEX aggregator that routes across every major Solana liquidity source
-                for the best price — settled in under a second.
+                Get the best prices by routing across all major Solana DEXes. Instant, secure, and
+                non-custodial swaps with Phantom, Solflare, and Backpack support.
               </p>
               <div className="mt-6 flex flex-wrap gap-6 text-sm">
                 <Bullet>Best-price routing via Jupiter</Bullet>
