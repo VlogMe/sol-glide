@@ -13,11 +13,16 @@ export default defineConfig({
   },
   vite: {
     plugins: [
-      nodePolyfills({
-        include: ["buffer", "process", "util", "stream", "events"],
-        globals: { Buffer: true, global: true, process: true },
-        protocolImports: true,
-      }),
+      {
+        ...nodePolyfills({
+          include: ["buffer", "process", "util", "stream", "events"],
+          globals: { Buffer: true, global: true, process: true },
+          protocolImports: false,
+        }),
+        // Scope to the client environment only — the Cloudflare/Nitro SSR
+        // build fails on the plugin's node:buffer shim.
+        applyToEnvironment: (env: any) => env.name === "client",
+      } as any,
     ],
     ssr: {
       noExternal: [
