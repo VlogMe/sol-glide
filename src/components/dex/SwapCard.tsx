@@ -320,7 +320,48 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   };
 
 
-  const disabled = !amount || !quote || loading || swapping;
+  const oneClickSwap = async () => {
+    // Preserve user gesture: call provider.connect() synchronously if needed,
+    // then chain into signing without any awaits between click and connect().
+    const provider = getPhantom();
+    if (!provider) {
+      window.open("https://phantom.app/", "_blank");
+      return;
+    }
+    try {
+      if (!provider.isConnected || !publicKeyToString(provider.publicKey)) {
+        setSwapping(true);
+        // Fire connect immediately — do NOT await anything before this line.
+        const connectPromise = (provider as any).connect?.();
+        const res = await connectPromise;
+        const address =
+          publicKeyToString(res?.publicKey) ?? publicKeyToString(provider.publicKey);
+        if (!address) {
+          setSwapping(false);
+          return;
+        }
+        window.dispatchEvent(
+          new CustomEvent("solpitch:phantom-wallet", { detail: { address } })
+        );
+        if (!quote) {
+          setSwapping(false);
+          return;
+        }
+        await handleSwap(provider, address);
+        return;
+      }
+      await handleSwap(provider);
+    } catch (e: any) {
+      setSwapping(false);
+      if (e?.code === 4001) return; // user rejected — stay silent
+      const msg = friendlyError(String(e?.message || "Wallet action failed"));
+      setLastError(msg);
+      toast.error(msg);
+    }
+  };
+
+  const primaryDisabled = swapping || loading || (connected && (!amount || !quote));
+
 
   return (
     <div className="glass rounded-3xl p-5 md:p-6 shadow-[var(--shadow-card)] w-full max-w-md mx-auto">
