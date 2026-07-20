@@ -237,10 +237,15 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
     setAmount(outAmount || "");
   };
 
-  const handleSwap = async () => {
-    const provider = getPhantom();
-    const currentAddress = publicKeyToString(provider?.publicKey) ?? walletAddress;
-    if (!provider?.isConnected || !currentAddress) {
+  const handleSwap = async (providerOverride?: PhantomProvider, addressOverride?: string) => {
+    const provider = providerOverride ?? getPhantom();
+    if (!provider) {
+      window.open("https://phantom.app/", "_blank");
+      return;
+    }
+    const currentAddress =
+      addressOverride ?? publicKeyToString(provider.publicKey) ?? walletAddress ?? null;
+    if (!provider.isConnected || !currentAddress) {
       toast.error("Connect Phantom first");
       return;
     }
@@ -315,7 +320,48 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   };
 
 
-  const disabled = !amount || !quote || loading || swapping;
+  const oneClickSwap = async () => {
+    // Preserve user gesture: call provider.connect() synchronously if needed,
+    // then chain into signing without any awaits between click and connect().
+    const provider = getPhantom();
+    if (!provider) {
+      window.open("https://phantom.app/", "_blank");
+      return;
+    }
+    try {
+      if (!provider.isConnected || !publicKeyToString(provider.publicKey)) {
+        setSwapping(true);
+        // Fire connect immediately — do NOT await anything before this line.
+        const connectPromise = (provider as any).connect?.();
+        const res = await connectPromise;
+        const address =
+          publicKeyToString(res?.publicKey) ?? publicKeyToString(provider.publicKey);
+        if (!address) {
+          setSwapping(false);
+          return;
+        }
+        window.dispatchEvent(
+          new CustomEvent("solpitch:phantom-wallet", { detail: { address } })
+        );
+        if (!quote) {
+          setSwapping(false);
+          return;
+        }
+        await handleSwap(provider, address);
+        return;
+      }
+      await handleSwap(provider);
+    } catch (e: any) {
+      setSwapping(false);
+      if (e?.code === 4001) return; // user rejected — stay silent
+      const msg = friendlyError(String(e?.message || "Wallet action failed"));
+      setLastError(msg);
+      toast.error(msg);
+    }
+  };
+
+  const primaryDisabled = swapping || loading || (connected && (!amount || !quote));
+
 
   return (
     <div className="glass rounded-3xl p-5 md:p-6 shadow-[var(--shadow-card)] w-full max-w-md mx-auto">
@@ -445,32 +491,29 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       )}
 
       <div className="mt-5">
-        {!connected ? (
-          <div>
-            <WalletButton />
-          </div>
-        ) : (
-          <button
-            onClick={handleSwap}
-            disabled={disabled}
-            className="w-full h-12 rounded-2xl bg-[image:var(--grad-primary)] text-primary-foreground font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed glow transition-transform active:scale-[0.99]"
-          >
-            {swapping ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> Swapping…
-              </span>
-            ) : loading ? (
-              "Fetching best route…"
-            ) : !amount ? (
-              "Enter an amount"
-            ) : !quote ? (
-              "No route"
-            ) : (
-              `Swap ${from.symbol} → ${to.symbol}`
-            )}
-          </button>
-        )}
+        <button
+          onClick={oneClickSwap}
+          disabled={primaryDisabled}
+          className="w-full h-12 rounded-2xl bg-[image:var(--grad-primary)] text-primary-foreground font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed glow transition-transform active:scale-[0.99]"
+        >
+          {swapping ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> {connected ? "Swapping…" : "Connecting…"}
+            </span>
+          ) : !connected ? (
+            amount && quote ? `Connect & Swap ${from.symbol} → ${to.symbol}` : "Connect Phantom"
+          ) : loading ? (
+            "Fetching best route…"
+          ) : !amount ? (
+            "Enter an amount"
+          ) : !quote ? (
+            "No route"
+          ) : (
+            `Swap ${from.symbol} → ${to.symbol}`
+          )}
+        </button>
       </div>
+
 
       {lastError && (
         <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2">
