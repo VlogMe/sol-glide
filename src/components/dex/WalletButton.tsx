@@ -94,11 +94,16 @@ export function WalletButton({ children }: { children?: ReactNode }) {
       setAddress(null);
       window.dispatchEvent(new CustomEvent("solpitch:phantom-wallet", { detail: { address: null } }));
     };
+    const customSync = (event: Event) => {
+      const nextAddress = (event as CustomEvent<{ address?: string | null }>).detail?.address ?? null;
+      setAddress(nextAddress);
+    };
 
     if (provider?.isConnected) sync();
     provider?.on?.("connect", sync);
     provider?.on?.("accountChanged", sync);
     provider?.on?.("disconnect", clear);
+    window.addEventListener("solpitch:phantom-wallet", customSync);
 
     return () => {
       provider?.off?.("connect", sync);
@@ -107,6 +112,7 @@ export function WalletButton({ children }: { children?: ReactNode }) {
       provider?.removeListener?.("connect", sync);
       provider?.removeListener?.("accountChanged", sync);
       provider?.removeListener?.("disconnect", clear);
+      window.removeEventListener("solpitch:phantom-wallet", customSync);
     };
   }, []);
 
