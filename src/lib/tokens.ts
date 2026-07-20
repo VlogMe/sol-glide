@@ -122,7 +122,5 @@ export const POPULAR_PAIRS: { from: string; to: string; vip?: boolean }[] = [
   { from: "SOL", to: "POPCAT" },
   { from: "SOL", to: "MOODENG" },
   { from: "SOL", to: "PNUT" },
-  { from: "SOL", to: "FARTCOIN" },
-  { from: "SOL", to: "GOAT" },
   { from: "SOL", to: "JUP" },
 ];
