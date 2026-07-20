@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { PopularPairs } from "./PopularPairs";
-import { connectPhantom, disconnectPhantom } from "./WalletButton";
+import { connectPhantom } from "./WalletButton";
 
 const Header = lazy(() => import("./Header").then((module) => ({ default: module.Header })));
 const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: module.SwapCard })));
@@ -21,14 +21,6 @@ export function DexApp() {
     return address;
   }, []);
 
-  const handleWalletDisconnect = useCallback(async () => {
-    try {
-      await disconnectPhantom();
-    } finally {
-      setWalletAddress(null);
-    }
-  }, []);
-
   if (!mounted) {
     return <div className="min-h-screen" />;
   }
@@ -41,7 +33,6 @@ export function DexApp() {
         setPair={setPair}
         walletAddress={walletAddress}
         onWalletConnect={handleWalletConnect}
-        onWalletDisconnect={handleWalletDisconnect}
       />
     </>
   );
@@ -52,22 +43,16 @@ function DexLayout({
   setPair,
   walletAddress,
   onWalletConnect,
-  onWalletDisconnect,
 }: {
   pair: { from: string; to: string };
   setPair: (pair: { from: string; to: string }) => void;
   walletAddress: string | null;
   onWalletConnect: () => Promise<string | null>;
-  onWalletDisconnect: () => Promise<void> | void;
 }) {
   return (
     <div className="min-h-screen">
       <Suspense fallback={<HeaderSkeleton />}>
-        <Header
-          walletAddress={walletAddress}
-          onWalletConnect={onWalletConnect}
-          onWalletDisconnect={onWalletDisconnect}
-        />
+        <Header />
       </Suspense>
       <main>
         <section id="swap" className="mx-auto max-w-7xl px-6 pt-14 md:pt-20 pb-10">
