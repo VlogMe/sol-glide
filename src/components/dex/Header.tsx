@@ -14,10 +14,6 @@ export function Header() {
             <span className="gradient-text">SOLPITCH</span> SWAP
           </span>
         </a>
-        <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
-          <a href="#swap" className="hover:text-foreground transition-colors">Swap</a>
-          <a href="#pairs" className="hover:text-foreground transition-colors">Markets</a>
-        </nav>
       </div>
     </header>
   );
