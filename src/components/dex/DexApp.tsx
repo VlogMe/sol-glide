@@ -7,7 +7,7 @@ const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: mo
 
 export function DexApp() {
   const [mounted, setMounted] = useState(false);
-  const [pair, setPair] = useState({ from: "SOL", to: "USDC" });
+  const [pair, setPair] = useState({ from: "SOL", to: "SPDD" });
 
   useEffect(() => {
     setMounted(true);
