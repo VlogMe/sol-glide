@@ -59,8 +59,9 @@ export function PhantomButton({
     }
     try {
       setBusy(true);
-      const res = await provider.connect();
-      const pk = res?.publicKey?.toString?.() ?? provider.publicKey?.toString?.();
+      // Force the Phantom approval popup — never trust a cached session.
+      const res = await provider.connect({ onlyIfTrusted: false });
+      const pk = res?.publicKey?.toString?.();
       if (!pk) throw new Error("No public key returned");
       setAddress(pk);
     } catch (e: any) {
