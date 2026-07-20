@@ -1,17 +1,7 @@
 import logoAsset from "@/assets/solpitch-logo.png.asset.json";
-import { lazy, Suspense } from "react";
-
-const WalletButton = lazy(() => import("./WalletButton").then((module) => ({ default: module.WalletButton })));
+import { WalletButton } from "./WalletButton";
 
 export function Header({ walletReady = true }: { walletReady?: boolean; loadingWallet?: boolean }) {
-  const queueWalletModalOpen = () => {
-    console.log("Connect button clicked");
-    if (typeof window !== "undefined") {
-      (window as typeof window & { __solpitchOpenWalletModalRequested?: boolean }).__solpitchOpenWalletModalRequested = true;
-      window.dispatchEvent(new Event("solpitch:open-wallet-modal"));
-    }
-  };
-
   return (
     <header className="sticky top-0 z-40 border-b border-border/50 backdrop-blur-xl bg-background/60">
       <div className="mx-auto max-w-7xl px-4 md:px-6 h-16 flex items-center justify-between gap-3">
@@ -32,26 +22,12 @@ export function Header({ walletReady = true }: { walletReady?: boolean; loadingW
         </nav>
         <div className="wallet-btn-wrap">
           {walletReady ? (
-            <Suspense fallback={<StaticConnectButton onClick={queueWalletModalOpen} />}>
-              <WalletButton />
-            </Suspense>
+            <WalletButton />
           ) : (
-            <StaticConnectButton onClick={queueWalletModalOpen} />
+            <WalletButton />
           )}
         </div>
       </div>
     </header>
-  );
-}
-
-function StaticConnectButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex h-11 min-w-[170px] items-center justify-center rounded-xl bg-gradient-to-r from-[#A855F7] to-[#7C3AED] px-5 text-sm font-bold text-white shadow-lg shadow-purple-500/30 transition hover:from-[#9333EA] hover:to-[#6D28D9] hover:shadow-purple-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-    >
-      Connect Phantom
-    </button>
   );
 }

@@ -1,16 +1,32 @@
 import { createContext, useContext, type ReactNode } from "react";
 
-type SolpitchWalletRuntime = {
-  publicKey: { toBase58: () => string } | null;
+export type SolpitchPublicKey = {
+  toBase58: () => string;
+  toString: () => string;
+};
+
+export type SolpitchWalletRuntime = {
+  publicKey: SolpitchPublicKey | null;
   connected: boolean;
   connecting: boolean;
-  signTransaction?: any;
+  signTransaction?: (transaction: unknown) => Promise<unknown>;
   connection: any | null;
-  walletModal: {
-    visible: boolean;
-    show: () => void;
-  };
+  walletError: string | null;
+  connect: () => Promise<void>;
+  disconnect: () => Promise<void>;
 };
+
+type SolpitchWindow = typeof window & {
+  __solpitchConnectPhantomRequested?: boolean;
+};
+
+function queuePhantomConnect() {
+  console.log("Connect button clicked");
+  if (typeof window === "undefined") return;
+  const w = window as SolpitchWindow;
+  w.__solpitchConnectPhantomRequested = true;
+  window.dispatchEvent(new Event("solpitch:connect-phantom"));
+}
 
 const fallbackWalletRuntime: SolpitchWalletRuntime = {
   publicKey: null,
@@ -18,13 +34,9 @@ const fallbackWalletRuntime: SolpitchWalletRuntime = {
   connecting: false,
   signTransaction: undefined,
   connection: null,
-  walletModal: {
-    visible: false,
-    show: () => {
-      console.log("Connect button clicked");
-      window.dispatchEvent(new Event("solpitch:open-wallet-modal"));
-    },
-  },
+  walletError: null,
+  connect: async () => queuePhantomConnect(),
+  disconnect: async () => {},
 };
 
 const SolpitchWalletContext = createContext<SolpitchWalletRuntime>(fallbackWalletRuntime);

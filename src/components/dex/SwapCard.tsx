@@ -195,7 +195,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
         console.error("deserialize failed", err);
         throw new Error("Failed to prepare swap. Please try again.");
       }
-      const signed = await signTransaction(tx);
+      const signed = (await signTransaction(tx)) as { serialize: () => Uint8Array };
       const sig = await connection.sendRawTransaction(signed.serialize(), {
         skipPreflight: false,
         maxRetries: 3,

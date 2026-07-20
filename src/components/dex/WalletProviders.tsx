@@ -1,31 +1,28 @@
-import "@/lib/buffer-polyfill";
-import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { SolpitchWalletRuntimeProvider } from "./wallet-runtime";
+import {
+  SolpitchWalletRuntimeProvider,
+  type SolpitchPublicKey,
+  type SolpitchWalletRuntime,
+} from "./wallet-runtime";
 
-import "./wallet-adapter.css";
-
-type WalletRuntime = {
-  ConnectionProvider: ComponentType<{ endpoint: string; config?: { commitment: string }; children: ReactNode }>;
-  WalletProvider: ComponentType<{
-    wallets: unknown[];
-    autoConnect?: boolean;
-    onError?: (error: unknown) => void;
-    children: ReactNode;
-  }>;
-  WalletModalProvider: ComponentType<{ children: ReactNode }>;
-  RuntimeBridge: ComponentType<{ children: ReactNode }>;
-  wallets: unknown[];
+type PhantomProvider = {
+  isPhantom?: boolean;
+  isConnected?: boolean;
+  publicKey?: unknown;
+  connect: (options?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey?: unknown } | void>;
+  disconnect?: () => Promise<void>;
+  signTransaction?: (transaction: unknown) => Promise<unknown>;
+  on?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
+  off?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
+  removeListener?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
 };
 
-function safeAdapter<T>(Ctor: new () => T, name: string): T | null {
-  try {
-    return new Ctor();
-  } catch (err) {
-    console.warn(`${name} wallet adapter unavailable`, err);
-    return null;
-  }
-}
+type SolpitchWindow = typeof window & {
+  phantom?: { solana?: PhantomProvider };
+  solana?: PhantomProvider;
+  __solpitchConnectPhantomRequested?: boolean;
+};
 
 function normalizeRpcEndpoint(rpcUrl: string) {
   const endpoint = rpcUrl && rpcUrl.trim().length > 0 ? rpcUrl.trim() : "/api/rpc";
@@ -34,122 +31,185 @@ function normalizeRpcEndpoint(rpcUrl: string) {
   return "https://api.mainnet-beta.solana.com";
 }
 
+function getPhantomProvider(): PhantomProvider | null {
+  if (typeof window === "undefined") return null;
+  const w = window as SolpitchWindow;
+  const phantomProvider = w.phantom?.solana;
+  if (phantomProvider?.isPhantom) return phantomProvider;
+  if (w.solana?.isPhantom) return w.solana;
+  return null;
+}
+
+function toPublicKey(value: unknown): SolpitchPublicKey | null {
+  if (!value) return null;
+  if (typeof value === "string" && value.length > 0) {
+    return { toBase58: () => value, toString: () => value };
+  }
+  if (typeof value === "object") {
+    const candidate = value as { toBase58?: () => string; toString?: () => string };
+    if (typeof candidate.toBase58 === "function") {
+      const address = candidate.toBase58();
+      return { toBase58: () => address, toString: () => address };
+    }
+    if (typeof candidate.toString === "function") {
+      const address = candidate.toString();
+      if (address && address !== "[object Object]") return { toBase58: () => address, toString: () => address };
+    }
+  }
+  return null;
+}
+
 export function WalletProviders({
   children,
   rpcUrl,
-  fallback,
   onError,
 }: {
   children: ReactNode;
   rpcUrl: string;
-  fallback?: (state: { error: string | null; retry: () => void }) => ReactNode;
   onError?: (error: unknown) => void;
 }) {
   const endpoint = useMemo(() => normalizeRpcEndpoint(rpcUrl), [rpcUrl]);
-  const [runtime, setRuntime] = useState<WalletRuntime | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
+  const [connection, setConnection] = useState<any | null>(null);
+  const [publicKey, setPublicKey] = useState<SolpitchPublicKey | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
 
-  const retry = useCallback(() => {
-    setError(null);
-    setRuntime(null);
-    setAttempt((value) => value + 1);
-  }, []);
+  const connected = !!publicKey;
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadWalletRuntime() {
+    async function createConnection() {
       try {
-        setError(null);
-
-        // Load the Buffer/global polyfill before any Solana package evaluates.
+        setWalletError(null);
         await import("@/lib/buffer-polyfill");
-
-        const [reactAdapter, reactUi, phantom] = await Promise.all([
-          import("@solana/wallet-adapter-react"),
-          import("@solana/wallet-adapter-react-ui"),
-          import("@solana/wallet-adapter-phantom"),
-        ]);
-
+        const { Connection } = await import("@solana/web3.js");
         if (cancelled) return;
-
-        const wallets = [
-          safeAdapter(phantom.PhantomWalletAdapter, "Phantom"),
-        ].filter(Boolean) as unknown[];
-
-        const RuntimeBridge: WalletRuntime["RuntimeBridge"] = ({ children }) => {
-          const wallet = reactAdapter.useWallet();
-          const connectionState = reactAdapter.useConnection();
-          const modal = reactUi.useWalletModal();
-
-          const show = () => {
-            console.log("Connect button clicked");
-            modal.setVisible(true);
-            console.log("Wallet modal opened", { visible: true });
-          };
-
-          return (
-            <SolpitchWalletRuntimeProvider
-              value={{
-                publicKey: wallet.publicKey,
-                connected: wallet.connected,
-                connecting: wallet.connecting,
-                signTransaction: wallet.signTransaction,
-                connection: connectionState?.connection ?? null,
-                walletModal: {
-                  visible: modal.visible,
-                  show,
-                },
-              }}
-            >
-              {children}
-            </SolpitchWalletRuntimeProvider>
-          );
-        };
-
-        setRuntime({
-          ConnectionProvider: reactAdapter.ConnectionProvider as WalletRuntime["ConnectionProvider"],
-          WalletProvider: reactAdapter.WalletProvider as WalletRuntime["WalletProvider"],
-          WalletModalProvider: reactUi.WalletModalProvider as WalletRuntime["WalletModalProvider"],
-          RuntimeBridge,
-          wallets,
-        });
+        setConnection(new Connection(endpoint, "confirmed"));
       } catch (err) {
         if (cancelled) return;
-        console.error("Wallet runtime failed to initialize", err);
+        console.error("Solana connection failed to initialize", err);
         onError?.(err);
-        setError("Wallet support could not load in this browser session.");
+        setWalletError("Solana connection is still loading. Please try again.");
       }
     }
 
-    loadWalletRuntime();
+    createConnection();
 
     return () => {
       cancelled = true;
     };
-  }, [attempt, onError]);
+  }, [endpoint, onError]);
 
-  if (!runtime) {
-    return fallback ? <>{fallback({ error, retry })}</> : null;
-  }
+  const connectPhantom = useCallback(async () => {
+    console.log("Connect button clicked");
+    setWalletError(null);
+    const provider = getPhantomProvider();
+    if (!provider) {
+      const msg = "Phantom wallet is not installed.";
+      setWalletError(msg);
+      window.open("https://phantom.app/download", "_blank", "noopener,noreferrer");
+      return;
+    }
 
-  const { ConnectionProvider, WalletProvider, WalletModalProvider, RuntimeBridge, wallets } = runtime;
+    try {
+      setConnecting(true);
+      const response = await provider.connect();
+      const nextPublicKey = toPublicKey(response?.publicKey ?? provider.publicKey);
+      if (!nextPublicKey) throw new Error("Phantom did not return a wallet address.");
+      setPublicKey(nextPublicKey);
+      console.log("Phantom wallet opened", { connected: true });
+    } catch (err) {
+      console.error("Phantom connection failed", err);
+      const message = err instanceof Error && err.message ? err.message : "Could not connect Phantom. Please try again.";
+      setWalletError(message);
+      onError?.(err);
+    } finally {
+      setConnecting(false);
+    }
+  }, [onError]);
 
-  return (
-    <ConnectionProvider endpoint={endpoint} config={{ commitment: "confirmed" }}>
-      <WalletProvider
-        wallets={wallets}
-        autoConnect={false}
-        onError={(err: unknown) => {
-          console.warn("Wallet error", err);
-          onError?.(err);
-        }}
-      >
-        <WalletModalProvider>
-          <RuntimeBridge>{children}</RuntimeBridge>
-        </WalletModalProvider>
-      </WalletProvider>
-    </ConnectionProvider>
+  const disconnectPhantom = useCallback(async () => {
+    const provider = getPhantomProvider();
+    try {
+      await provider?.disconnect?.();
+    } catch (err) {
+      console.warn("Phantom disconnect failed", err);
+    } finally {
+      setPublicKey(null);
+      setConnecting(false);
+    }
+  }, []);
+
+  const signTransaction = useCallback(async (transaction: unknown) => {
+    const provider = getPhantomProvider();
+    if (!provider?.signTransaction) throw new Error("Phantom cannot sign this transaction.");
+    return provider.signTransaction(transaction);
+  }, []);
+
+  useEffect(() => {
+    const provider = getPhantomProvider();
+    if (!provider) return;
+
+    const syncPublicKey = (value?: unknown) => {
+      const nextPublicKey = toPublicKey(value ?? provider.publicKey);
+      if (nextPublicKey) setPublicKey(nextPublicKey);
+    };
+    const clearPublicKey = () => setPublicKey(null);
+    const handleAccountChanged = (value?: unknown) => {
+      const nextPublicKey = toPublicKey(value);
+      setPublicKey(nextPublicKey);
+    };
+
+    provider.on?.("connect", syncPublicKey);
+    provider.on?.("disconnect", clearPublicKey);
+    provider.on?.("accountChanged", handleAccountChanged);
+
+    provider
+      .connect({ onlyIfTrusted: true })
+      .then((response) => syncPublicKey(response?.publicKey))
+      .catch(() => {
+        if (provider.isConnected) syncPublicKey();
+      });
+
+    return () => {
+      provider.off?.("connect", syncPublicKey);
+      provider.off?.("disconnect", clearPublicKey);
+      provider.off?.("accountChanged", handleAccountChanged);
+      provider.removeListener?.("connect", syncPublicKey);
+      provider.removeListener?.("disconnect", clearPublicKey);
+      provider.removeListener?.("accountChanged", handleAccountChanged);
+    };
+  }, []);
+
+  useEffect(() => {
+    const openQueued = () => {
+      const w = window as SolpitchWindow;
+      if (w.__solpitchConnectPhantomRequested) {
+        w.__solpitchConnectPhantomRequested = false;
+      }
+      void connectPhantom();
+    };
+
+    const w = window as SolpitchWindow;
+    if (w.__solpitchConnectPhantomRequested) window.setTimeout(openQueued, 0);
+    window.addEventListener("solpitch:connect-phantom", openQueued);
+    return () => window.removeEventListener("solpitch:connect-phantom", openQueued);
+  }, [connectPhantom]);
+
+  const runtime = useMemo<SolpitchWalletRuntime>(
+    () => ({
+      publicKey,
+      connected,
+      connecting,
+      signTransaction,
+      connection,
+      walletError,
+      connect: connectPhantom,
+      disconnect: disconnectPhantom,
+    }),
+    [publicKey, connected, connecting, signTransaction, connection, walletError, connectPhantom, disconnectPhantom],
   );
+
+  return <SolpitchWalletRuntimeProvider value={runtime}>{children}</SolpitchWalletRuntimeProvider>;
 }
