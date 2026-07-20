@@ -127,8 +127,7 @@ export function WalletButton({ children }: { children?: ReactNode }) {
 
     const provider = getPhantom();
     if (!provider) {
-      const msg = "Phantom wallet is not installed.";
-      setWalletError(msg);
+      setWalletError("Phantom wallet is not installed.");
       openPhantomInstallOrMobile();
       return;
     }
@@ -143,57 +142,37 @@ export function WalletButton({ children }: { children?: ReactNode }) {
       }
     }
 
-    if (typeof provider.connect !== "function" && typeof provider.request !== "function") {
-      const msg = "Phantom is installed but this browser session cannot open it. Refresh and try again.";
-      setWalletError(msg);
+    if (typeof provider.connect !== "function") {
+      setWalletError("Phantom is installed but unavailable in this browser session. Refresh and try again.");
       return;
     }
 
-    setConnecting(true);
     setWalletError(null);
+    setConnecting(true);
+
+    // CRITICAL: call connect() synchronously here (no awaits before this line
+    // after the user click) so Phantom recognises the user gesture and opens
+    // the extension popup — matching Pump.fun / Jupiter behaviour.
+    const connectPromise = provider.connect();
+    pendingConnect.current = connectPromise as Promise<unknown>;
 
     try {
-      // This call must happen directly inside the user click handler. Calling
-      // connect() with no options is Phantom's approval-popup path, which also
-      // triggers the unlock flow if the wallet is locked.
-      console.log("Opening Phantom connect popup");
-
-      const attemptConnect = async () => {
-        if (typeof provider.connect === "function") {
-          return provider.connect();
-        }
-        return provider.request?.({ method: "connect" });
-      };
-
-      let response: Awaited<ReturnType<typeof attemptConnect>> | undefined;
-      try {
-        const first = attemptConnect();
-        pendingConnect.current = first ?? null;
-        response = await first;
-      } catch (err) {
-        const code = (err as { code?: number })?.code;
-        // -32603 typically means Phantom's internal state is stale (locked,
-        // just installed, or the previous session was killed). Wait a beat
-        // and retry once — this matches how Pump.fun / Jupiter handle it.
-        if (code === -32603) {
-          pendingConnect.current = null;
-          await delay(400);
-          const retry = attemptConnect();
-          pendingConnect.current = retry ?? null;
-          response = await retry;
-        } else {
-          throw err;
-        }
-      }
-
+      const response = await connectPromise;
       const nextAddress = publicKeyToString(response?.publicKey ?? provider.publicKey);
       if (!nextAddress) throw new Error("Phantom did not return a wallet address.");
       console.log("Phantom connected", nextAddress);
       setAddress(nextAddress);
       window.dispatchEvent(new CustomEvent("solpitch:phantom-wallet", { detail: { address: nextAddress } }));
     } catch (err) {
-      console.error("Phantom connection failed", err);
-      setWalletError(mapPhantomError(err));
+      const code = (err as { code?: number })?.code;
+      // Swallow user-rejection silently (no scary error banner).
+      if (code === 4001) {
+        console.info("Phantom connection dismissed by user");
+        setWalletError(null);
+      } else {
+        console.error("Phantom connection failed", err);
+        setWalletError(mapPhantomError(err));
+      }
     } finally {
       pendingConnect.current = null;
       setConnecting(false);
@@ -218,3 +197,4 @@ export function WalletButton({ children }: { children?: ReactNode }) {
     </button>
   );
 }
+
