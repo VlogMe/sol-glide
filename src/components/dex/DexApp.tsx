@@ -84,7 +84,6 @@ export function DexApp() {
               onRetry={retry}
             />
           )}
-          onError={() => retryWallet()}
         >
           <Toaster theme="dark" position="bottom-right" richColors />
           <DexLayout pair={pair} setPair={setPair} walletReady />
