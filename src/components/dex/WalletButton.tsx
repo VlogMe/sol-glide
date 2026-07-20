@@ -10,6 +10,10 @@ type WalletRuntime = {
   useWalletModal: () => { setVisible: (v: boolean) => void };
 };
 
+type WalletModalWindow = typeof window & {
+  __solpitchOpenWalletModalRequested?: boolean;
+};
+
 function shortAddr(addr: string) {
   return `${addr.slice(0, 4)}…${addr.slice(-4)}`;
 }
@@ -24,14 +28,32 @@ function ConnectButtonInner({
   const { publicKey, connected, connecting } = runtime.useWallet();
   const { setVisible } = runtime.useWalletModal();
 
-  const onClick = useCallback(() => {
+  const openWalletModal = useCallback(() => {
     console.log("Connect button clicked");
     try {
       setVisible(true);
+      console.log("Wallet modal opened");
     } catch (err) {
       console.error("Wallet action failed", err);
     }
   }, [setVisible]);
+
+  useEffect(() => {
+    const w = window as WalletModalWindow;
+    const openQueuedModal = () => {
+      if (w.__solpitchOpenWalletModalRequested) {
+        w.__solpitchOpenWalletModalRequested = false;
+      }
+      openWalletModal();
+    };
+
+    if (w.__solpitchOpenWalletModalRequested) {
+      window.setTimeout(openQueuedModal, 0);
+    }
+
+    window.addEventListener("solpitch:open-wallet-modal", openQueuedModal);
+    return () => window.removeEventListener("solpitch:open-wallet-modal", openQueuedModal);
+  }, [openWalletModal]);
 
   const label = connecting
     ? "Connecting..."
@@ -42,7 +64,7 @@ function ConnectButtonInner({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={openWalletModal}
       className="inline-flex h-11 min-w-[150px] items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       {label}
@@ -99,6 +121,11 @@ export function WalletButton({ children }: { children?: ReactNode }) {
     <button
       type="button"
       onClick={() => {
+        console.log("Connect button clicked");
+        if (typeof window !== "undefined") {
+          (window as WalletModalWindow).__solpitchOpenWalletModalRequested = true;
+          window.dispatchEvent(new Event("solpitch:open-wallet-modal"));
+        }
         if (failed) console.log("Wallet adapter failed to load. Refresh the page to retry.");
         else console.log("Wallet adapter still loading...");
       }}
