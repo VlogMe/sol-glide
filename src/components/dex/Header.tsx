@@ -1,9 +1,5 @@
-import { lazy, Suspense } from "react";
 import logoAsset from "@/assets/solpitch-logo.png.asset.json";
-
-const WalletButton = lazy(() =>
-  import("./WalletButton").then((module) => ({ default: module.WalletButton })),
-);
+import { WalletButton } from "./WalletButton";
 
 export function Header({ walletReady = true }: { walletReady?: boolean; loadingWallet?: boolean }) {
   return (
@@ -26,26 +22,18 @@ export function Header({ walletReady = true }: { walletReady?: boolean; loadingW
         </nav>
         <div className="wallet-btn-wrap">
           {walletReady ? (
-            <Suspense fallback={<div className="h-10 w-32 rounded-xl bg-secondary/70" aria-hidden />}>
-              <WalletButton />
-            </Suspense>
+            <WalletButton />
           ) : (
-            <div className="h-10 w-32 rounded-xl bg-secondary/70" aria-hidden />
+            <button
+              type="button"
+              onClick={() => console.log("Wallet adapter is still loading...")}
+              className="inline-flex h-11 min-w-[150px] items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              Connect Wallet
+            </button>
           )}
         </div>
       </div>
-      <style>{`
-        .wallet-btn-wrap .wallet-adapter-button {
-          background: var(--grad-primary) !important;
-          color: var(--primary-foreground) !important;
-          border-radius: 0.75rem !important;
-          height: 40px !important;
-          font-family: var(--font-sans) !important;
-          font-weight: 600 !important;
-          padding: 0 1rem !important;
-        }
-        .wallet-adapter-modal-wrapper { background: var(--card) !important; }
-      `}</style>
     </header>
   );
 }
