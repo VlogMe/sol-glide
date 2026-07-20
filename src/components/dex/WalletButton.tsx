@@ -24,11 +24,16 @@ function shortAddr(addr: string) {
 function getPhantom(): PhantomProvider | null {
   if (typeof window === "undefined") return null;
   const w = window as PhantomWindow;
-  // Prefer the direct Phantom browser provider. This keeps the click path as
-  // window.solana.connect(), which Phantom treats as a user-initiated request.
-  if (w.solana?.isPhantom) return w.solana;
+  // Phantom's recommended provider path is window.phantom.solana. The legacy
+  // window.solana namespace can be shimmed by other wallets and sometimes
+  // returns -32603 "Unexpected error" when connect() is invoked against it.
   if (w.phantom?.solana?.isPhantom) return w.phantom.solana;
+  if (w.solana?.isPhantom) return w.solana;
   return null;
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function publicKeyToString(value: unknown): string | null {
