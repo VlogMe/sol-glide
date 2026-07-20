@@ -37,7 +37,7 @@ export function PopularPairs({ onSelect }: { onSelect: (from: string, to: string
                 )}
               </div>
               <div className="mt-3 text-xs text-muted-foreground">
-                {vip ? "Hold 100k+ $SPDD for 0.30% fee" : "Tap to swap"}
+                {vip ? "Hold 1M+ $SPDD for 0.30% fee" : "Tap to swap"}
               </div>
             </button>
           );
