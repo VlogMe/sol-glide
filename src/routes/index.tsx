@@ -3,7 +3,13 @@ import { ClientOnly } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 
 const DexApp = lazy(() =>
-  import("@/components/dex/DexApp").then((module) => ({ default: module.DexApp })),
+  import("@/lib/buffer-polyfill")
+    .then(() => import("@/components/dex/DexApp"))
+    .then((module) => ({ default: module.DexApp }))
+    .catch((error) => {
+      console.error("Failed to load SOLPITCH SWAP", error);
+      return { default: DexLoadFailure };
+    }),
 );
 
 export const Route = createFileRoute("/")({
@@ -31,5 +37,24 @@ function Index() {
         <DexApp />
       </Suspense>
     </ClientOnly>
+  );
+}
+
+function DexLoadFailure() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background px-6 text-center">
+      <div className="max-w-sm">
+        <h1 className="text-xl font-semibold text-foreground">SOLPITCH SWAP</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          The swap interface could not load in this browser session. Refresh to retry.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          Refresh
+        </button>
+      </div>
+    </main>
   );
 }

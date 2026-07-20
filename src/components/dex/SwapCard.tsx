@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownUp, Loader2, Settings2, Info, RefreshCw } from "lucide-react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { VersionedTransaction } from "@solana/web3.js";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -10,6 +9,7 @@ import { TOKENS, type Token } from "@/lib/tokens";
 import { getJupiterQuote, getJupiterSwap, logSwap, getSpddTier } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { WalletButton } from "./WalletButton";
 
 function friendlyError(raw: string): string {
   const s = raw.toLowerCase();
@@ -307,7 +307,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       <div className="mt-5">
         {!connected ? (
           <div className="[&_.wallet-adapter-button]:!w-full [&_.wallet-adapter-button]:!h-12 [&_.wallet-adapter-button]:!justify-center [&_.wallet-adapter-button]:!rounded-2xl [&_.wallet-adapter-button]:!bg-[image:var(--grad-primary)] [&_.wallet-adapter-button]:!text-primary-foreground [&_.wallet-adapter-button]:!font-semibold [&_.wallet-adapter-button]:!text-base">
-            <WalletMultiButton>Connect Wallet</WalletMultiButton>
+            <WalletButton>Connect Wallet</WalletButton>
           </div>
         ) : (
           <button
