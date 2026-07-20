@@ -1,65 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownUp, Loader2, Settings2, Info, RefreshCw } from "lucide-react";
+import { ArrowDownUp, Loader2, Settings2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 
 import { TOKENS, type Token } from "@/lib/tokens";
-import { getJupiterQuote, getJupiterSwap, logSwap, getSpddTier } from "@/lib/jupiter.functions";
+import { getJupiterQuote } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { getPhantom as sharedGetPhantom, publicKeyToString as sharedPkToString } from "./WalletButton";
-
-import type { PhantomProvider } from "./WalletButton";
-
-function friendlyError(raw: string): string {
-  const s = raw.toLowerCase();
-  if (s.includes("rate limit")) return raw;
-  if (s.includes("0x1") || s.includes("insufficient") || s.includes("insufficient lamports"))
-    return "Insufficient funds for this swap (including network fees).";
-  if (s.includes("slippage") || s.includes("6001") || s.includes("0x1771"))
-    return "Price moved beyond your slippage tolerance. Increase slippage or try again.";
-  if (s.includes("blockhash") || s.includes("expired") || s.includes("block height exceeded"))
-    return "Transaction expired before confirmation. Please retry.";
-  if (s.includes("timeout") || s.includes("timed out") || s.includes("failed to fetch"))
-    return "Network timeout talking to Solana RPC. Please retry.";
-  if (s.includes("user rejected") || s.includes("rejected the request"))
-    return "You rejected the transaction in your wallet.";
-  if (s.includes("could not find any route") || s.includes("no route"))
-    return "No route available for this pair right now.";
-  return raw.length > 160 ? raw.slice(0, 160) + "…" : raw;
-}
-
 
 const NORMAL_FEE_BPS = 50;
-const DEBUG_SWAP =
-  (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_DEBUG_SWAP === "true") ||
-  (typeof window !== "undefined" && (window as any).__SOLPITCH_DEBUG_SWAP === true) ||
-  (typeof localStorage !== "undefined" && localStorage.getItem("solpitch:debug-swap") === "1");
 
-function debugLog(label: string, payload: Record<string, unknown>) {
-  if (!DEBUG_SWAP) return;
-  try {
-    // eslint-disable-next-line no-console
-    console.log(`[SwapCard:debug] ${label}`, payload);
-  } catch {
-    /* noop */
-  }
-}
-
-const getPhantom = sharedGetPhantom;
-const publicKeyToString = sharedPkToString;
-
-async function sendRpc(method: string, params: unknown[]) {
-  const response = await fetch("/api/rpc", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method, params }),
-  });
-  const json = await response.json().catch(() => null);
-  if (!response.ok || json?.error) {
-    throw new Error(json?.error?.message || `Solana RPC ${method} failed`);
-  }
-  return json.result;
+function friendlyError(raw: string): string {
+  return raw.length > 160 ? raw.slice(0, 160) + "…" : raw;
 }
 
 function fmt(n: number, max = 6) {
@@ -72,48 +24,24 @@ function fmt(n: number, max = 6) {
 export function SwapCard({
   initialFrom = "SOL",
   initialTo = "USDC",
-  walletAddress,
-  onWalletConnect,
 }: {
   initialFrom?: string;
   initialTo?: string;
-  walletAddress: string | null;
-  onWalletConnect: () => Promise<string | null>;
 }) {
   const [from, setFrom] = useState<Token>(TOKENS[initialFrom] ?? TOKENS.SOL);
   const [to, setTo] = useState<Token>(TOKENS[initialTo] ?? TOKENS.USDC);
   const [amount, setAmount] = useState("");
-  const [slippageBps, setSlippageBps] = useState(50); // 0.5%
+  const [slippageBps, setSlippageBps] = useState(50);
   const [quote, setQuote] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [swapping, setSwapping] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const connected = !!walletAddress;
   const quoteFn = useServerFn(getJupiterQuote);
-  const swapFn = useServerFn(getJupiterSwap);
-  const logFn = useServerFn(logSwap);
-  const tierFn = useServerFn(getSpddTier);
-  const [lastError, setLastError] = useState<string | null>(null);
-  const [tier, setTier] = useState<{ isVip: boolean; balance: number; feeBps: number } | null>(null);
 
-  // Check SPDD tier on wallet connect
-  useEffect(() => {
-    if (!walletAddress) {
-      setTier(null);
-      return;
-    }
-    tierFn({ data: { userPublicKey: walletAddress } })
-      .then((t) => setTier(t))
-      .catch(() => setTier(null));
-  }, [walletAddress, tierFn]);
-
-  const feeBps = tier?.feeBps ?? NORMAL_FEE_BPS;
-  const isVip = !!tier?.isVip;
+  const feeBps = NORMAL_FEE_BPS;
 
   useEffect(() => {
     setQuote(null);
-    setLastError(null);
     if (debounce.current) clearTimeout(debounce.current);
     const num = Number(amount);
     if (!amount || !isFinite(num) || num <= 0) return;
@@ -121,37 +49,18 @@ export function SwapCard({
       try {
         setLoading(true);
         const raw = BigInt(Math.floor(num * 10 ** from.decimals)).toString();
-        debugLog("quote:request", {
-          amount,
-          rawAmount: raw,
-          inputMint: from.mint,
-          inputSymbol: from.symbol,
-          outputMint: to.mint,
-          outputSymbol: to.symbol,
-          slippageBps,
-          userPublicKey: walletAddress,
-        });
         const q = await quoteFn({
           data: {
             inputMint: from.mint,
             outputMint: to.mint,
             amount: raw,
             slippageBps,
-            ...(walletAddress ? { userPublicKey: walletAddress } : {}),
           },
-        });
-        debugLog("quote:response", {
-          outAmount: q?.outAmount,
-          priceImpactPct: q?.priceImpactPct,
-          routePlanCount: Array.isArray(q?.routePlan) ? q.routePlan.length : 0,
-          hasRoutePlan: Array.isArray(q?.routePlan),
         });
         setQuote(q);
       } catch (e: any) {
         console.error(e);
-        const msg = friendlyError(String(e?.message || "Failed to fetch quote"));
-        setLastError(msg);
-        toast.error(msg);
+        toast.error(friendlyError(String(e?.message || "Failed to fetch quote")));
       } finally {
         setLoading(false);
       }
@@ -159,7 +68,7 @@ export function SwapCard({
     return () => {
       if (debounce.current) clearTimeout(debounce.current);
     };
-  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals, walletAddress, isVip]);
+  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals]);
 
   const outAmount = useMemo(() => {
     if (!quote?.outAmount) return "";
@@ -181,155 +90,10 @@ export function SwapCard({
     setAmount(outAmount || "");
   };
 
-  const handleSwap = async (providerOverride?: PhantomProvider, addressOverride?: string) => {
-    const provider = providerOverride ?? getPhantom();
-    if (!provider) {
-      window.open("https://phantom.app/", "_blank");
-      return;
-    }
-    const currentAddress =
-      addressOverride ?? publicKeyToString(provider.publicKey) ?? walletAddress ?? null;
-    if (!currentAddress) {
-      toast.error("Connect Phantom first");
-      return;
-    }
-    if (!provider.signTransaction) {
-      const msg = "Phantom cannot sign this transaction. Please update Phantom and try again.";
-      setLastError(msg);
-      toast.error(msg);
-      return;
-    }
-    if (!quote) return;
-    setLastError(null);
-    try {
-      setSwapping(true);
-      let swapTransaction: string | undefined;
-      let swapResponse: any;
-      try {
-        swapResponse = await swapFn({
-          data: { quoteResponse: quote, userPublicKey: currentAddress },
-        });
-        console.log("[swap] getJupiterSwap response", swapResponse);
-        swapTransaction = swapResponse?.swapTransaction;
-      } catch (err: any) {
-        console.error("[swap] getJupiterSwap threw", err);
-        const detail = err?.message || String(err);
-        throw new Error(`Swap preparation failed: ${detail}`);
-      }
-      if (!swapTransaction || typeof swapTransaction !== "string") {
-        console.error("[swap] missing/invalid swapTransaction", swapResponse);
-        throw new Error(
-          `Swap preparation returned no transaction${swapResponse?.error ? `: ${swapResponse.error}` : ""}.`,
-        );
-      }
-      let tx: any;
-      try {
-        await import("@/lib/buffer-polyfill");
-        const { VersionedTransaction } = await import("@solana/web3.js");
-        const buf = Uint8Array.from(atob(swapTransaction), (c) => c.charCodeAt(0));
-        tx = VersionedTransaction.deserialize(buf);
-      } catch (err: any) {
-        console.error("[swap] deserialize failed", err, { len: swapTransaction?.length });
-        throw new Error(`Could not decode swap transaction: ${err?.message || err}`);
-      }
-      const signed = await provider.signTransaction(tx);
-      if (!signed?.serialize) throw new Error("Wallet did not return a signed transaction.");
-      const rawTx = signed.serialize();
-      const binary = Array.from(rawTx, (byte) => String.fromCharCode(byte)).join("");
-      const encodedTx = btoa(binary);
-      const sigResult = await sendRpc("sendTransaction", [encodedTx, { encoding: "base64", skipPreflight: false, maxRetries: 3 }]);
-      const sig = typeof sigResult === "string" ? sigResult : "";
-      if (!sig) throw new Error("Swap submission failed. Please try again.");
-      toast.success("Swap submitted", {
-        description: sig.slice(0, 8) + "…",
-        action: {
-          label: "View",
-          onClick: () => window.open(`https://solscan.io/tx/${sig}`, "_blank"),
-        },
-      });
-      await sendRpc("confirmTransaction", [sig, "confirmed"]);
-      toast.success("Swap confirmed ✔");
-      logFn({
-        data: {
-          signature: sig,
-          inputMint: from.mint,
-          outputMint: to.mint,
-          inAmount: String(quote.inAmount ?? ""),
-          outAmount: String(quote.outAmount ?? ""),
-        },
-      }).catch(() => {});
-      setAmount("");
-      setQuote(null);
-    } catch (e: any) {
-      console.error(e);
-      const msg = friendlyError(String(e?.message || "Swap failed"));
-      setLastError(msg);
-      toast.error(msg);
-    } finally {
-      setSwapping(false);
-    }
-  };
-
-
-  const oneClickSwap = async () => {
-    // Preserve user gesture: call window.solana.connect() through the shared handler immediately.
-    const provider = getPhantom();
-    if (!provider) {
-      window.open("https://phantom.app/", "_blank");
-      return;
-    }
-    try {
-      if (!walletAddress) {
-        // Fire connect immediately — do NOT set state or await anything before this line.
-        const connectPromise = onWalletConnect();
-        setSwapping(true);
-        const address = await connectPromise;
-        if (!address) {
-          setSwapping(false);
-          return;
-        }
-        if (!quote) {
-          setSwapping(false);
-          return;
-        }
-        await handleSwap(provider, address);
-        return;
-      }
-      await handleSwap(provider);
-    } catch (e: any) {
-      setSwapping(false);
-      if (e?.code === 4001) return; // user rejected — stay silent
-      const msg = friendlyError(String(e?.message || "Wallet action failed"));
-      setLastError(msg);
-      toast.error(msg);
-    }
-  };
-
-  const primaryDisabled = swapping || loading || (connected && (!amount || !quote));
-
-
   return (
     <div className="glass rounded-3xl p-5 md:p-6 shadow-[var(--shadow-card)] w-full max-w-md mx-auto">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <h3 className="font-display text-lg font-semibold">Swap</h3>
-          {isVip ? (
-            <span
-              title={`SPDD balance: ${tier?.balance.toLocaleString(undefined, { maximumFractionDigits: 0 })} — 0.30% VIP fee active (40% discount)`}
-              className="inline-flex items-center gap-1 rounded-full border border-success/50 bg-success/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-success shadow-[0_0_12px_hsl(var(--success)/0.35)]"
-            >
-              ★ VIP · SPDD 0.30%
-            </span>
-          ) : (
-            <span
-              title="Hold 1,000,000+ $SPDD for 0.30% fee (40% discount)"
-              className="hidden sm:inline-flex items-center gap-1 rounded-full border border-border bg-secondary/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground cursor-help"
-            >
-              Hold 1M SPDD → 0.30%
-            </span>
-          )}
-        </div>
-
+        <h3 className="font-display text-lg font-semibold">Swap</h3>
         <Popover>
           <PopoverTrigger asChild>
             <button className="p-2 rounded-lg hover:bg-secondary/60 text-muted-foreground">
@@ -362,9 +126,7 @@ export function SwapCard({
       {(from.warn || to.warn) && (
         <div className="mb-3 flex items-start gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs text-yellow-200">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <span>
-            Low liquidity / bonding-curve token — trade carefully. Price impact and slippage may be high.
-          </span>
+          <span>Low liquidity / bonding-curve token — trade carefully.</span>
         </div>
       )}
 
@@ -422,10 +184,8 @@ export function SwapCard({
             </span>
           </Row>
           <Row label="Slippage">{(slippageBps / 100).toFixed(2)}%</Row>
-          <Row label={isVip ? "VIP fee (0.30%)" : "Platform fee (0.50%)"}>
-            <span className={isVip ? "text-success font-medium" : undefined}>
-              {fmt(feeAmount)} {from.symbol}
-            </span>
+          <Row label="Platform fee (0.50%)">
+            {fmt(feeAmount)} {from.symbol}
           </Row>
           {routeLabels.length > 0 && (
             <Row label="Route">
@@ -437,54 +197,16 @@ export function SwapCard({
 
       <div className="mt-5">
         <button
-          onClick={oneClickSwap}
-          disabled={primaryDisabled}
-          className="w-full h-12 rounded-2xl bg-[image:var(--grad-primary)] text-primary-foreground font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed glow transition-transform active:scale-[0.99]"
+          disabled
+          className="w-full h-12 rounded-2xl bg-[image:var(--grad-primary)] text-primary-foreground font-semibold text-base opacity-50 cursor-not-allowed"
         >
-          {swapping ? (
-            <span className="inline-flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" /> {connected ? "Swapping…" : "Connecting…"}
-            </span>
-          ) : !connected ? (
-            amount && quote ? `Connect & Swap ${from.symbol} → ${to.symbol}` : "Connect Phantom"
-          ) : loading ? (
-            "Fetching best route…"
-          ) : !amount ? (
-            "Enter an amount"
-          ) : !quote ? (
-            "No route"
-          ) : (
-            `Swap ${from.symbol} → ${to.symbol}`
-          )}
+          Wallet coming soon
         </button>
       </div>
 
-
-      {lastError && (
-        <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2">
-          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <div className="flex-1">{lastError}</div>
-          <button
-            onClick={() => {
-              setLastError(null);
-              setAmount((a) => a);
-              if (walletAddress && quote) handleSwap();
-            }}
-            className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-1 hover:bg-destructive/20"
-          >
-            <RefreshCw className="h-3 w-3" /> Retry
-          </button>
-        </div>
-      )}
-
       <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
-          <Info className="h-3 w-3" /> Non-custodial ·{" "}
-          {isVip ? (
-            <span className="text-success font-medium">0.3% VIP Fee (SPDD Holder)</span>
-          ) : (
-            <>0.5% Platform Fee</>
-          )}
+          <Info className="h-3 w-3" /> Non-custodial · 0.5% Platform Fee
         </span>
         <a
           href="https://jup.ag"
@@ -495,7 +217,6 @@ export function SwapCard({
           Powered by Jupiter
         </a>
       </div>
-
     </div>
   );
 }

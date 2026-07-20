@@ -1,7 +1,6 @@
-import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { PopularPairs } from "./PopularPairs";
-import { connectPhantom } from "./WalletButton";
 
 const Header = lazy(() => import("./Header").then((module) => ({ default: module.Header })));
 const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: module.SwapCard })));
@@ -9,16 +8,9 @@ const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: mo
 export function DexApp() {
   const [mounted, setMounted] = useState(false);
   const [pair, setPair] = useState({ from: "SOL", to: "SPDD" });
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  const handleWalletConnect = useCallback(async () => {
-    const address = await connectPhantom();
-    setWalletAddress(address);
-    return address;
   }, []);
 
   if (!mounted) {
@@ -28,12 +20,7 @@ export function DexApp() {
   return (
     <>
       <Toaster theme="dark" position="bottom-right" richColors />
-      <DexLayout
-        pair={pair}
-        setPair={setPair}
-        walletAddress={walletAddress}
-        onWalletConnect={handleWalletConnect}
-      />
+      <DexLayout pair={pair} setPair={setPair} />
     </>
   );
 }
@@ -41,13 +28,9 @@ export function DexApp() {
 function DexLayout({
   pair,
   setPair,
-  walletAddress,
-  onWalletConnect,
 }: {
   pair: { from: string; to: string };
   setPair: (pair: { from: string; to: string }) => void;
-  walletAddress: string | null;
-  onWalletConnect: () => Promise<string | null>;
 }) {
   return (
     <div className="min-h-screen">
@@ -67,7 +50,7 @@ function DexLayout({
               </h1>
               <p className="mt-5 text-lg text-muted-foreground max-w-lg">
                 Get the best prices by routing across all major Solana DEXes. Instant, secure, and
-                non-custodial swaps with Phantom support.
+                non-custodial swaps.
               </p>
               <div className="mt-6 flex flex-wrap gap-6 text-sm">
                 <Bullet>Best-price routing via Jupiter</Bullet>
@@ -80,8 +63,6 @@ function DexLayout({
                   key={`${pair.from}-${pair.to}`}
                   initialFrom={pair.from}
                   initialTo={pair.to}
-                  walletAddress={walletAddress}
-                  onWalletConnect={onWalletConnect}
                 />
               </Suspense>
             </div>
