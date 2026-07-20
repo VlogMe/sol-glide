@@ -7,22 +7,9 @@ import { TOKENS, type Token } from "@/lib/tokens";
 import { getJupiterQuote, getJupiterSwap, logSwap, getSpddTier } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { WalletButton } from "./WalletButton";
+import { WalletButton, getPhantom as sharedGetPhantom, publicKeyToString as sharedPkToString, connectPhantomProvider } from "./WalletButton";
 
-type PhantomProvider = {
-  isPhantom?: boolean;
-  isConnected?: boolean;
-  publicKey?: { toBase58?: () => string; toString?: () => string } | string | null;
-  signTransaction?: (transaction: unknown) => Promise<{ serialize: () => Uint8Array }>;
-  on?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
-  off?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
-  removeListener?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
-};
-
-type PhantomWindow = typeof window & {
-  solana?: PhantomProvider;
-  phantom?: { solana?: PhantomProvider };
-};
+import type { PhantomProvider } from "./WalletButton";
 
 function friendlyError(raw: string): string {
   const s = raw.toLowerCase();
@@ -59,27 +46,8 @@ function debugLog(label: string, payload: Record<string, unknown>) {
   }
 }
 
-function getPhantom(): PhantomProvider | null {
-  if (typeof window === "undefined") return null;
-  const w = window as PhantomWindow;
-  if (w.solana?.isPhantom) return w.solana;
-  if (w.phantom?.solana?.isPhantom) return w.phantom.solana;
-  return null;
-}
-
-function publicKeyToString(value: unknown): string | null {
-  if (!value) return null;
-  if (typeof value === "string") return value;
-  if (typeof value === "object") {
-    const key = value as { toBase58?: () => string; toString?: () => string };
-    if (typeof key.toBase58 === "function") return key.toBase58();
-    if (typeof key.toString === "function") {
-      const address = key.toString();
-      return address && address !== "[object Object]" ? address : null;
-    }
-  }
-  return null;
-}
+const getPhantom = sharedGetPhantom;
+const publicKeyToString = sharedPkToString;
 
 async function sendRpc(method: string, params: unknown[]) {
   const response = await fetch("/api/rpc", {
@@ -287,8 +255,9 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       const rawTx = signed.serialize();
       const binary = Array.from(rawTx, (byte) => String.fromCharCode(byte)).join("");
       const encodedTx = btoa(binary);
-      const sig = await sendRpc("sendTransaction", [encodedTx, { encoding: "base64", skipPreflight: false, maxRetries: 3 }]);
-      if (!sig || typeof sig !== "string") throw new Error("Swap submission failed. Please try again.");
+      const sigResult = await sendRpc("sendTransaction", [encodedTx, { encoding: "base64", skipPreflight: false, maxRetries: 3 }]);
+      const sig = typeof sigResult === "string" ? sigResult : "";
+      if (!sig) throw new Error("Swap submission failed. Please try again.");
       toast.success("Swap submitted", {
         description: sig.slice(0, 8) + "…",
         action: {
@@ -332,10 +301,8 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       if (!provider.isConnected || !publicKeyToString(provider.publicKey)) {
         setSwapping(true);
         // Fire connect immediately — do NOT await anything before this line.
-        const connectPromise = (provider as any).connect?.();
-        const res = await connectPromise;
-        const address =
-          publicKeyToString(res?.publicKey) ?? publicKeyToString(provider.publicKey);
+        const connectPromise = connectPhantomProvider(provider);
+        const address = await connectPromise;
         if (!address) {
           setSwapping(false);
           return;

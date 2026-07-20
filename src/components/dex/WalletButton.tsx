@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
-type PhantomProvider = {
+export type PhantomProvider = {
   isPhantom?: boolean;
   isConnected?: boolean;
   publicKey?: { toBase58?: () => string; toString?: () => string } | string | null;
   connect?: (options?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey?: PhantomProvider["publicKey"] } | void>;
-  request?: (args: { method: "connect"; params?: unknown }) => Promise<{ publicKey?: PhantomProvider["publicKey"] } | void>;
+  request?: (args: { method: string; params?: unknown }) => Promise<{ publicKey?: PhantomProvider["publicKey"] } | void>;
+  signTransaction?: (transaction: unknown) => Promise<{ serialize: () => Uint8Array }>;
   disconnect?: () => Promise<void>;
   on?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
   off?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
@@ -21,22 +22,15 @@ function shortAddr(addr: string) {
   return `${addr.slice(0, 4)}…${addr.slice(-4)}`;
 }
 
-function getPhantom(): PhantomProvider | null {
+export function getPhantom(): PhantomProvider | null {
   if (typeof window === "undefined") return null;
   const w = window as PhantomWindow;
-  // Phantom's recommended provider path is window.phantom.solana. The legacy
-  // window.solana namespace can be shimmed by other wallets and sometimes
-  // returns -32603 "Unexpected error" when connect() is invoked against it.
   if (w.phantom?.solana?.isPhantom) return w.phantom.solana;
   if (w.solana?.isPhantom) return w.solana;
   return null;
 }
 
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function publicKeyToString(value: unknown): string | null {
+export function publicKeyToString(value: unknown): string | null {
   if (!value) return null;
   if (typeof value === "string") return value;
   if (typeof value === "object") {
@@ -67,13 +61,31 @@ function openPhantomInstallOrMobile() {
   window.open(target, "_blank", "noopener,noreferrer");
 }
 
-function mapPhantomError(error: unknown) {
-  const err = error as { code?: number; message?: string };
-  const message = typeof err?.message === "string" ? err.message : "";
-  if (err?.code === 4001 || /reject/i.test(message)) return "Connection rejected in Phantom.";
-  if (err?.code === -32002 || /pending/i.test(message)) return "A Phantom connection request is already open. Check Phantom.";
-  if (err?.code === -32603) return "Phantom could not open the approval popup. Unlock Phantom and try again.";
-  return message || "Could not connect Phantom. Please try again.";
+/**
+ * Connect to Phantom. Tries the newer wallet-standard `request({method:"connect"})`
+ * first (which handles the unlock flow cleanly), then falls back to `connect()`.
+ * MUST be called synchronously from a user gesture (no awaits before it).
+ */
+export async function connectPhantomProvider(provider: PhantomProvider): Promise<string | null> {
+  let response: any;
+  if (typeof provider.request === "function") {
+    try {
+      response = await provider.request({ method: "connect" });
+    } catch (err) {
+      const code = (err as { code?: number })?.code;
+      // -32603 = Phantom "Unexpected error", often when locked. Retry via connect().
+      if (code === -32603 && typeof provider.connect === "function") {
+        response = await provider.connect();
+      } else {
+        throw err;
+      }
+    }
+  } else if (typeof provider.connect === "function") {
+    response = await provider.connect();
+  } else {
+    throw new Error("Phantom is installed but no connect method is available.");
+  }
+  return publicKeyToString(response?.publicKey ?? provider.publicKey);
 }
 
 export function getConnectedPhantomAddress() {
@@ -85,8 +97,7 @@ export function getConnectedPhantomAddress() {
 export function WalletButton({ children }: { children?: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
-  const [walletError, setWalletError] = useState<string | null>(null);
-  const pendingConnect = useRef<Promise<unknown> | null>(null);
+  const pending = useRef(false);
 
   useEffect(() => {
     const provider = getPhantom();
@@ -121,62 +132,34 @@ export function WalletButton({ children }: { children?: ReactNode }) {
     };
   }, []);
 
-  const connectPhantom = useCallback(async () => {
-    console.log("Connect Phantom clicked");
-    if (pendingConnect.current) return;
-
+  const onClick = useCallback(() => {
+    if (pending.current) return;
     const provider = getPhantom();
     if (!provider) {
-      setWalletError("Phantom wallet is not installed.");
       openPhantomInstallOrMobile();
       return;
     }
-
-    if (provider.isConnected) {
-      const connectedAddress = publicKeyToString(provider.publicKey);
-      if (connectedAddress) {
-        setAddress(connectedAddress);
-        setWalletError(null);
-        window.dispatchEvent(new CustomEvent("solpitch:phantom-wallet", { detail: { address: connectedAddress } }));
-        return;
-      }
-    }
-
-    if (typeof provider.connect !== "function") {
-      setWalletError("Phantom is installed but unavailable in this browser session. Refresh and try again.");
-      return;
-    }
-
-    setWalletError(null);
+    pending.current = true;
     setConnecting(true);
-
-    // CRITICAL: call connect() synchronously here (no awaits before this line
-    // after the user click) so Phantom recognises the user gesture and opens
-    // the extension popup — matching Pump.fun / Jupiter behaviour.
-    const connectPromise = provider.connect();
-    pendingConnect.current = connectPromise as Promise<unknown>;
-
-    try {
-      const response = await connectPromise;
-      const nextAddress = publicKeyToString(response?.publicKey ?? provider.publicKey);
-      if (!nextAddress) throw new Error("Phantom did not return a wallet address.");
-      console.log("Phantom connected", nextAddress);
-      setAddress(nextAddress);
-      window.dispatchEvent(new CustomEvent("solpitch:phantom-wallet", { detail: { address: nextAddress } }));
-    } catch (err) {
-      const code = (err as { code?: number })?.code;
-      // Swallow user-rejection silently (no scary error banner).
-      if (code === 4001) {
-        console.info("Phantom connection dismissed by user");
-        setWalletError(null);
-      } else {
-        console.error("Phantom connection failed", err);
-        setWalletError(mapPhantomError(err));
-      }
-    } finally {
-      pendingConnect.current = null;
-      setConnecting(false);
-    }
+    // Kick off connect synchronously from the click. Do NOT await before this line.
+    connectPhantomProvider(provider)
+      .then((nextAddress) => {
+        if (nextAddress) {
+          setAddress(nextAddress);
+          window.dispatchEvent(
+            new CustomEvent("solpitch:phantom-wallet", { detail: { address: nextAddress } })
+          );
+        }
+      })
+      .catch((err) => {
+        const code = (err as { code?: number })?.code;
+        if (code === 4001) return; // user rejected
+        console.error("Phantom connect failed", err);
+      })
+      .finally(() => {
+        pending.current = false;
+        setConnecting(false);
+      });
   }, []);
 
   const label = connecting
@@ -188,8 +171,7 @@ export function WalletButton({ children }: { children?: ReactNode }) {
   return (
     <button
       type="button"
-      onClick={() => void connectPhantom()}
-      title={walletError ?? undefined}
+      onClick={onClick}
       aria-label={address ? `Connected Phantom wallet ${address}` : "Connect Phantom wallet"}
       className="inline-flex h-11 min-w-[170px] items-center justify-center rounded-xl bg-gradient-to-r from-[#A855F7] to-[#7C3AED] px-5 text-sm font-bold text-white shadow-lg shadow-purple-500/30 transition hover:from-[#9333EA] hover:to-[#6D28D9] hover:shadow-purple-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
@@ -197,4 +179,3 @@ export function WalletButton({ children }: { children?: ReactNode }) {
     </button>
   );
 }
-
