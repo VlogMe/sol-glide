@@ -59,27 +59,8 @@ function debugLog(label: string, payload: Record<string, unknown>) {
   }
 }
 
-function getPhantom(): PhantomProvider | null {
-  if (typeof window === "undefined") return null;
-  const w = window as PhantomWindow;
-  if (w.solana?.isPhantom) return w.solana;
-  if (w.phantom?.solana?.isPhantom) return w.phantom.solana;
-  return null;
-}
-
-function publicKeyToString(value: unknown): string | null {
-  if (!value) return null;
-  if (typeof value === "string") return value;
-  if (typeof value === "object") {
-    const key = value as { toBase58?: () => string; toString?: () => string };
-    if (typeof key.toBase58 === "function") return key.toBase58();
-    if (typeof key.toString === "function") {
-      const address = key.toString();
-      return address && address !== "[object Object]" ? address : null;
-    }
-  }
-  return null;
-}
+const getPhantom = sharedGetPhantom;
+const publicKeyToString = sharedPkToString;
 
 async function sendRpc(method: string, params: unknown[]) {
   const response = await fetch("/api/rpc", {
