@@ -21,7 +21,7 @@ function ConnectButtonInner({
   runtime: WalletRuntime;
   children?: ReactNode;
 }) {
-  const { publicKey, connected, connecting, disconnect } = runtime.useWallet();
+  const { publicKey, connected, connecting } = runtime.useWallet();
   const { setVisible } = runtime.useWalletModal();
 
   const onClick = useCallback(() => {
