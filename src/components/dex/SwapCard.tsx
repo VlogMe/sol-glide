@@ -195,14 +195,6 @@ export function SwapCard({
         </div>
       )}
 
-      <div className="mt-5">
-        <button
-          disabled
-          className="w-full h-12 rounded-2xl bg-[image:var(--grad-primary)] text-primary-foreground font-semibold text-base opacity-50 cursor-not-allowed"
-        >
-          Wallet coming soon
-        </button>
-      </div>
 
       <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
