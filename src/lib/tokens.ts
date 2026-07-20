@@ -72,6 +72,41 @@ export const TOKENS: Record<string, Token> = {
     decimals: 6,
     logoURI: "/__l5e/assets-v1/1a99bfd5-e79a-43ba-b457-b8c8155ee15e/solpitch-logo.png",
   },
+  POPCAT: {
+    symbol: "POPCAT",
+    name: "Popcat",
+    mint: "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
+    decimals: 9,
+    logoURI: "https://arweave.net/A1etRNMKxhlNGTf-gNBtJ75QJJ4NJtbKh_UXQTlLXzI",
+  },
+  MOODENG: {
+    symbol: "MOODENG",
+    name: "Moo Deng",
+    mint: "ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY",
+    decimals: 6,
+    logoURI: "https://ipfs.io/ipfs/Qmf1g7dJZNDJHRQru7E7ENwDjcvu7swMUB6x9ZqPXr4RV2",
+  },
+  PNUT: {
+    symbol: "PNUT",
+    name: "Peanut the Squirrel",
+    mint: "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump",
+    decimals: 6,
+    logoURI: "https://ipfs.io/ipfs/QmNdTtJauw39u4DzGyTaZ35rRx4VgAxqb91wE89zjyHWd2",
+  },
+  FARTCOIN: {
+    symbol: "FARTCOIN",
+    name: "Fartcoin",
+    mint: "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump",
+    decimals: 6,
+    logoURI: "https://ipfs.io/ipfs/QmQr3Fz4h1etNsF7oLGMRHiCzhB5y9a7GjyodnF7zLHK1g",
+  },
+  GOAT: {
+    symbol: "GOAT",
+    name: "Goatseus Maximus",
+    mint: "CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump",
+    decimals: 6,
+    logoURI: "https://ipfs.io/ipfs/QmapAq9WtNrtyaDtjZPAHHNYmpSZAQU6HywwvfSWq4dQVV",
+  },
 };
 
 export const TOKEN_LIST = Object.values(TOKENS);
@@ -79,11 +114,15 @@ export const TOKEN_LIST = Object.values(TOKENS);
 export const SPDD_MINT = "C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump";
 
 export const POPULAR_PAIRS: { from: string; to: string; vip?: boolean }[] = [
-  { from: "SPDD", to: "SOL", vip: true },
+  { from: "SOL", to: "SPDD", vip: true },
   { from: "SOL", to: "USDC" },
-  { from: "BONK", to: "SOL" },
-  { from: "WIF", to: "USDC" },
-  { from: "JUP", to: "SOL" },
-  { from: "PYTH", to: "USDC" },
-  { from: "JTO", to: "USDC" },
+  { from: "SOL", to: "USDT" },
+  { from: "SOL", to: "BONK" },
+  { from: "SOL", to: "WIF" },
+  { from: "SOL", to: "POPCAT" },
+  { from: "SOL", to: "MOODENG" },
+  { from: "SOL", to: "PNUT" },
+  { from: "SOL", to: "FARTCOIN" },
+  { from: "SOL", to: "GOAT" },
+  { from: "SOL", to: "JUP" },
 ];
