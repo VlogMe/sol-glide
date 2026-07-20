@@ -25,7 +25,22 @@ export function WalletButton({ children }: { children?: ReactNode }) {
     };
   }, []);
 
-  if (Button) return <Button>{children}</Button>;
+  if (Button) {
+    try {
+      return <Button>{children}</Button>;
+    } catch (err) {
+      console.error("WalletMultiButton render failed", err);
+      return (
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="wallet-adapter-button wallet-adapter-button-trigger"
+        >
+          Refresh to retry
+        </button>
+      );
+    }
+  }
 
   return (
     <button
@@ -34,7 +49,7 @@ export function WalletButton({ children }: { children?: ReactNode }) {
       disabled={!failed}
       className="wallet-adapter-button wallet-adapter-button-trigger"
     >
-      {failed ? "Refresh to retry" : children || "Wallet"}
+      {failed ? "Refresh to retry" : (children ?? "Select Wallet")}
     </button>
   );
 }
