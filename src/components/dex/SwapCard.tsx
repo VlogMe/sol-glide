@@ -187,7 +187,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       if (!swapTransaction || typeof swapTransaction !== "string") {
         throw new Error("Failed to prepare swap. Please try again.");
       }
-      let tx: Awaited<typeof import("@solana/web3.js")>["VersionedTransaction"]["prototype"];
+      let tx: any;
       try {
         await import("@/lib/buffer-polyfill");
         const { VersionedTransaction } = await import("@solana/web3.js");
