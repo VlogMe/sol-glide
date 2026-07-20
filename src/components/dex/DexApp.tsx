@@ -14,7 +14,7 @@ const Header = lazy(() => import("./Header").then((module) => ({ default: module
 const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: module.SwapCard })));
 
 class WalletRuntimeBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode },
+  { children: ReactNode; fallback: (retry: () => void) => ReactNode },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -28,7 +28,9 @@ class WalletRuntimeBoundary extends Component<
   }
 
   render() {
-    return this.state.failed ? this.props.fallback : this.props.children;
+    return this.state.failed
+      ? this.props.fallback(() => this.setState({ failed: false }))
+      : this.props.children;
   }
 }
 
@@ -52,7 +54,7 @@ export function DexApp() {
   }
 
   return (
-    <WalletRuntimeBoundary fallback={<DexLayout pair={pair} setPair={setPair} walletReady={false} />}>
+    <WalletRuntimeBoundary fallback={() => <DexLayout pair={pair} setPair={setPair} walletReady={false} />}>
       <Suspense fallback={<DexLayout pair={pair} setPair={setPair} walletReady={false} loadingWallet />}>
         <WalletProviders rpcUrl={rpc}>
           <Toaster theme="dark" position="bottom-right" richColors />

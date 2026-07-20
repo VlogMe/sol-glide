@@ -22,7 +22,11 @@ export function WalletProviders({ children, rpcUrl }: { children: ReactNode; rpc
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect>
+      <WalletProvider
+        wallets={wallets}
+        autoConnect={false}
+        onError={(err) => console.warn("Wallet error", err)}
+      >
         <WalletModalProvider>{children}</WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
