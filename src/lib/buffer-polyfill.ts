@@ -11,7 +11,7 @@ if (typeof globalThis !== "undefined") {
     process?: typeof process;
     global?: unknown;
   };
-  if (!g.Buffer) g.Buffer = Buffer;
+  if (!g.Buffer || typeof g.Buffer.from !== "function") g.Buffer = Buffer;
   if (!g.process) g.process = process;
   if (!g.global) g.global = globalThis;
 }

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownUp, Loader2, Settings2, Info, RefreshCw } from "lucide-react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { VersionedTransaction } from "@solana/web3.js";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -66,7 +65,8 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { publicKey, signTransaction, connected } = useWallet();
-  const { connection } = useConnection();
+  const connectionState = useConnection();
+  const connection = connectionState?.connection ?? null;
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
   const logFn = useServerFn(logSwap);
@@ -164,6 +164,12 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       toast.error("Connect your wallet first");
       return;
     }
+    if (!connection?.sendRawTransaction || !connection?.getLatestBlockhash || !connection?.confirmTransaction) {
+      const msg = "Solana connection is still loading. Please try again.";
+      setLastError(msg);
+      toast.error(msg);
+      return;
+    }
     if (!quote) return;
     setLastError(null);
     try {
@@ -181,8 +187,10 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       if (!swapTransaction || typeof swapTransaction !== "string") {
         throw new Error("Failed to prepare swap. Please try again.");
       }
-      let tx: VersionedTransaction;
+      let tx: any;
       try {
+        await import("@/lib/buffer-polyfill");
+        const { VersionedTransaction } = await import("@solana/web3.js");
         const buf = Uint8Array.from(atob(swapTransaction), (c) => c.charCodeAt(0));
         tx = VersionedTransaction.deserialize(buf);
       } catch (err) {
