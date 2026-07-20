@@ -154,22 +154,22 @@ export function SwapCard({
       });
       const swapTransaction = swapResult?.swapTransaction;
       if (!swapTransaction) {
-        throw new Error("Failed to get swap transaction from Jupiter. Please try again.");
+        throw new Error("Jupiter did not return a valid swap transaction. Please try again.");
       }
 
       // Ensure Solana browser dependencies have Buffer/global before web3.js initializes.
       await import("@/lib/buffer-polyfill");
-      const { Connection, VersionedTransaction } = await import("@solana/web3.js");
+      const web3 = await import("@solana/web3.js");
+      const VersionedTransaction = (web3 as any).VersionedTransaction;
+      const Connection = (web3 as any).Connection;
       if (!VersionedTransaction || typeof VersionedTransaction.deserialize !== "function") {
         throw new Error("Failed to load Solana transaction support. Please refresh and try again.");
       }
 
-      const txBytes = decodeBase64Transaction(swapTransaction);
-      const fromTransaction = (VersionedTransaction as unknown as { from?: (bytes: Uint8Array) => unknown }).from;
-      const tx =
-        typeof fromTransaction === "function"
-          ? fromTransaction.call(VersionedTransaction, txBytes)
-          : VersionedTransaction.deserialize(txBytes);
+      const tx = VersionedTransaction.deserialize(
+        new Uint8Array(atob(swapTransaction).split("").map((c) => c.charCodeAt(0))),
+      );
+
       const rpcUrl =
         (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
       const connection = new Connection(rpcUrl, "confirmed");
