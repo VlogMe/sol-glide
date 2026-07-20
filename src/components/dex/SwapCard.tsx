@@ -82,10 +82,20 @@ export function SwapCard({
       setAmount("");
       setQuote(null);
       setLoading(false);
+      setSwapping(false);
       setSlippageBps(50);
+      setWalletAddress(null);
+    };
+    const onConnect = (e: Event) => {
+      const addr = (e as CustomEvent).detail?.address;
+      if (typeof addr === "string") setWalletAddress(addr);
     };
     window.addEventListener(WALLET_DISCONNECT_EVENT, onDisconnect);
-    return () => window.removeEventListener(WALLET_DISCONNECT_EVENT, onDisconnect);
+    window.addEventListener(WALLET_CONNECT_EVENT, onConnect as EventListener);
+    return () => {
+      window.removeEventListener(WALLET_DISCONNECT_EVENT, onDisconnect);
+      window.removeEventListener(WALLET_CONNECT_EVENT, onConnect as EventListener);
+    };
   }, []);
 
   const outAmount = useMemo(() => {
