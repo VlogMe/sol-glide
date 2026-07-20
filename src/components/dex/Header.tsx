@@ -5,7 +5,7 @@ const WalletButton = lazy(() =>
   import("./WalletButton").then((module) => ({ default: module.WalletButton })),
 );
 
-export function Header() {
+export function Header({ walletReady = true }: { walletReady?: boolean; loadingWallet?: boolean }) {
   return (
     <header className="sticky top-0 z-40 border-b border-border/50 backdrop-blur-xl bg-background/60">
       <div className="mx-auto max-w-7xl px-4 md:px-6 h-16 flex items-center justify-between gap-3">
@@ -25,9 +25,13 @@ export function Header() {
           <a href="#stats" className="hover:text-foreground transition-colors">Stats</a>
         </nav>
         <div className="wallet-btn-wrap">
-          <Suspense fallback={<div className="h-10 w-32 rounded-xl bg-secondary/70" aria-hidden />}>
-            <WalletButton />
-          </Suspense>
+          {walletReady ? (
+            <Suspense fallback={<div className="h-10 w-32 rounded-xl bg-secondary/70" aria-hidden />}>
+              <WalletButton />
+            </Suspense>
+          ) : (
+            <div className="h-10 w-32 rounded-xl bg-secondary/70" aria-hidden />
+          )}
         </div>
       </div>
       <style>{`
