@@ -154,13 +154,38 @@ export function WalletButton({ children }: { children?: ReactNode }) {
 
     try {
       // This call must happen directly inside the user click handler. Calling
-      // connect() with no options is Phantom's approval-popup path.
+      // connect() with no options is Phantom's approval-popup path, which also
+      // triggers the unlock flow if the wallet is locked.
       console.log("Opening Phantom connect popup");
-      const connectPromise = provider.connect
-        ? provider.connect()
-        : provider.request?.({ method: "connect" });
-      pendingConnect.current = connectPromise ?? null;
-      const response = await connectPromise;
+
+      const attemptConnect = async () => {
+        if (typeof provider.connect === "function") {
+          return provider.connect();
+        }
+        return provider.request?.({ method: "connect" });
+      };
+
+      let response: Awaited<ReturnType<typeof attemptConnect>> | undefined;
+      try {
+        const first = attemptConnect();
+        pendingConnect.current = first ?? null;
+        response = await first;
+      } catch (err) {
+        const code = (err as { code?: number })?.code;
+        // -32603 typically means Phantom's internal state is stale (locked,
+        // just installed, or the previous session was killed). Wait a beat
+        // and retry once — this matches how Pump.fun / Jupiter handle it.
+        if (code === -32603) {
+          pendingConnect.current = null;
+          await delay(400);
+          const retry = attemptConnect();
+          pendingConnect.current = retry ?? null;
+          response = await retry;
+        } else {
+          throw err;
+        }
+      }
+
       const nextAddress = publicKeyToString(response?.publicKey ?? provider.publicKey);
       if (!nextAddress) throw new Error("Phantom did not return a wallet address.");
       console.log("Phantom connected", nextAddress);
