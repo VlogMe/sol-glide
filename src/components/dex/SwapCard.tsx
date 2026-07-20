@@ -228,17 +228,23 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
     try {
       setSwapping(true);
       let swapTransaction: string | undefined;
+      let swapResponse: any;
       try {
-        const res = await swapFn({
+        swapResponse = await swapFn({
           data: { quoteResponse: quote, userPublicKey: currentAddress },
         });
-        swapTransaction = res?.swapTransaction;
-      } catch (err) {
-        console.error("swapFn failed", err);
-        throw new Error("Failed to prepare swap. Please try again.");
+        console.log("[swap] getJupiterSwap response", swapResponse);
+        swapTransaction = swapResponse?.swapTransaction;
+      } catch (err: any) {
+        console.error("[swap] getJupiterSwap threw", err);
+        const detail = err?.message || String(err);
+        throw new Error(`Swap preparation failed: ${detail}`);
       }
       if (!swapTransaction || typeof swapTransaction !== "string") {
-        throw new Error("Failed to prepare swap. Please try again.");
+        console.error("[swap] missing/invalid swapTransaction", swapResponse);
+        throw new Error(
+          `Swap preparation returned no transaction${swapResponse?.error ? `: ${swapResponse.error}` : ""}.`,
+        );
       }
       let tx: any;
       try {
@@ -246,12 +252,12 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
         const { VersionedTransaction } = await import("@solana/web3.js");
         const buf = Uint8Array.from(atob(swapTransaction), (c) => c.charCodeAt(0));
         tx = VersionedTransaction.deserialize(buf);
-      } catch (err) {
-        console.error("deserialize failed", err);
-        throw new Error("Failed to prepare swap. Please try again.");
+      } catch (err: any) {
+        console.error("[swap] deserialize failed", err, { len: swapTransaction?.length });
+        throw new Error(`Could not decode swap transaction: ${err?.message || err}`);
       }
       const signed = await provider.signTransaction(tx);
-      if (!signed?.serialize) throw new Error("Failed to prepare swap. Please try again.");
+      if (!signed?.serialize) throw new Error("Wallet did not return a signed transaction.");
       const rawTx = signed.serialize();
       const binary = Array.from(rawTx, (byte) => String.fromCharCode(byte)).join("");
       const encodedTx = btoa(binary);
