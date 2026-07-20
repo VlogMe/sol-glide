@@ -3,8 +3,7 @@ import { ClientOnly } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 
 const DexApp = lazy(() =>
-  import("@/lib/buffer-polyfill")
-    .then(() => import("@/components/dex/DexApp"))
+  import("@/components/dex/DexApp")
     .then((module) => ({ default: module.DexApp }))
     .catch((error) => {
       console.error("Failed to load SOLPITCH SWAP", error);

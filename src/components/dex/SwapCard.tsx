@@ -14,7 +14,6 @@ type PhantomProvider = {
   isConnected?: boolean;
   publicKey?: { toBase58?: () => string; toString?: () => string } | string | null;
   signTransaction?: (transaction: unknown) => Promise<{ serialize: () => Uint8Array }>;
-  signAndSendTransaction?: (transaction: unknown) => Promise<{ signature?: string }>;
   on?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
   off?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
   removeListener?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
@@ -45,8 +44,6 @@ function friendlyError(raw: string): string {
 
 
 const NORMAL_FEE_BPS = 50;
-const VIP_FEE_BPS = 30;
-
 const DEBUG_SWAP =
   (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_DEBUG_SWAP === "true") ||
   (typeof window !== "undefined" && (window as any).__SOLPITCH_DEBUG_SWAP === true) ||
@@ -449,8 +446,8 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
 
       <div className="mt-5">
         {!connected ? (
-          <div className="[&_.wallet-adapter-button]:!w-full [&_.wallet-adapter-button]:!h-12 [&_.wallet-adapter-button]:!justify-center [&_.wallet-adapter-button]:!rounded-2xl [&_.wallet-adapter-button]:!bg-[image:var(--grad-primary)] [&_.wallet-adapter-button]:!text-primary-foreground [&_.wallet-adapter-button]:!font-semibold [&_.wallet-adapter-button]:!text-base">
-            <WalletButton>Connect Wallet</WalletButton>
+          <div>
+            <WalletButton />
           </div>
         ) : (
           <button
