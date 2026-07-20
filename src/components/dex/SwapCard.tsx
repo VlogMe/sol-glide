@@ -301,10 +301,8 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       if (!provider.isConnected || !publicKeyToString(provider.publicKey)) {
         setSwapping(true);
         // Fire connect immediately — do NOT await anything before this line.
-        const connectPromise = (provider as any).connect?.();
-        const res = await connectPromise;
-        const address =
-          publicKeyToString(res?.publicKey) ?? publicKeyToString(provider.publicKey);
+        const connectPromise = connectPhantomProvider(provider);
+        const address = await connectPromise;
         if (!address) {
           setSwapping(false);
           return;
