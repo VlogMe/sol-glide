@@ -255,8 +255,9 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       const rawTx = signed.serialize();
       const binary = Array.from(rawTx, (byte) => String.fromCharCode(byte)).join("");
       const encodedTx = btoa(binary);
-      const sig = await sendRpc("sendTransaction", [encodedTx, { encoding: "base64", skipPreflight: false, maxRetries: 3 }]);
-      if (!sig || typeof sig !== "string") throw new Error("Swap submission failed. Please try again.");
+      const sigResult = await sendRpc("sendTransaction", [encodedTx, { encoding: "base64", skipPreflight: false, maxRetries: 3 }]);
+      const sig = typeof sigResult === "string" ? sigResult : "";
+      if (!sig) throw new Error("Swap submission failed. Please try again.");
       toast.success("Swap submitted", {
         description: sig.slice(0, 8) + "…",
         action: {
