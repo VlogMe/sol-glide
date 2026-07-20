@@ -24,8 +24,10 @@ function shortAddr(addr: string) {
 function getPhantom(): PhantomProvider | null {
   if (typeof window === "undefined") return null;
   const w = window as PhantomWindow;
-  if (w.phantom?.solana?.isPhantom) return w.phantom.solana;
+  // Prefer the direct Phantom browser provider. This keeps the click path as
+  // window.solana.connect(), which Phantom treats as a user-initiated request.
   if (w.solana?.isPhantom) return w.solana;
+  if (w.phantom?.solana?.isPhantom) return w.phantom.solana;
   return null;
 }
 
@@ -140,12 +142,11 @@ export function WalletButton({ children }: { children?: ReactNode }) {
     setWalletError(null);
 
     try {
-      // This call must happen directly inside the user click handler. Passing
-      // onlyIfTrusted: false forces Phantom to open its approval popup instead
-      // of silently checking cached permissions.
+      // This call must happen directly inside the user click handler. Calling
+      // connect() with no options is Phantom's approval-popup path.
       console.log("Opening Phantom connect popup");
       const connectPromise = provider.connect
-        ? provider.connect({ onlyIfTrusted: false })
+        ? provider.connect()
         : provider.request?.({ method: "connect" });
       pendingConnect.current = connectPromise ?? null;
       const response = await connectPromise;
