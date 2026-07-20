@@ -1,14 +1,10 @@
-import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { PopularPairs } from "./PopularPairs";
 import { Stats } from "./Stats";
 import { getRpcUrl } from "@/lib/jupiter.functions";
 
-const WalletProviders = lazy(() =>
-  import("@/lib/buffer-polyfill")
-    .then(() => import("./WalletProviders"))
-    .then((module) => ({ default: module.WalletProviders })),
-);
+const WalletProviders = lazy(() => import("./WalletProviders").then((module) => ({ default: module.WalletProviders })));
 
 const Header = lazy(() => import("./Header").then((module) => ({ default: module.Header })));
 const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: module.SwapCard })));
@@ -38,6 +34,11 @@ export function DexApp() {
   const [mounted, setMounted] = useState(false);
   const [rpc, setRpc] = useState<string>("https://api.mainnet-beta.solana.com");
   const [pair, setPair] = useState({ from: "SOL", to: "USDC" });
+  const [walletAttempt, setWalletAttempt] = useState(0);
+
+  const retryWallet = useCallback(() => {
+    setWalletAttempt((attempt) => attempt + 1);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -54,9 +55,36 @@ export function DexApp() {
   }
 
   return (
-    <WalletRuntimeBoundary fallback={() => <DexLayout pair={pair} setPair={setPair} walletReady={false} />}>
+    <WalletRuntimeBoundary
+      key={walletAttempt}
+      fallback={(retry) => (
+        <DexLayout
+          pair={pair}
+          setPair={setPair}
+          walletReady={false}
+          walletError="Wallet support could not load in this browser session."
+          onRetry={() => {
+            retry();
+            retryWallet();
+          }}
+        />
+      )}
+    >
       <Suspense fallback={<DexLayout pair={pair} setPair={setPair} walletReady={false} loadingWallet />}>
-        <WalletProviders rpcUrl={rpc}>
+        <WalletProviders
+          key={walletAttempt}
+          rpcUrl={rpc}
+          fallback={({ error, retry }) => (
+            <DexLayout
+              pair={pair}
+              setPair={setPair}
+              walletReady={false}
+              loadingWallet={!error}
+              walletError={error}
+              onRetry={retry}
+            />
+          )}
+        >
           <Toaster theme="dark" position="bottom-right" richColors />
           <DexLayout pair={pair} setPair={setPair} walletReady />
         </WalletProviders>
@@ -70,16 +98,20 @@ function DexLayout({
   setPair,
   walletReady,
   loadingWallet = false,
+  walletError = null,
+  onRetry,
 }: {
   pair: { from: string; to: string };
   setPair: (pair: { from: string; to: string }) => void;
   walletReady: boolean;
   loadingWallet?: boolean;
+  walletError?: string | null;
+  onRetry?: () => void;
 }) {
   return (
     <div className="min-h-screen">
       <Suspense fallback={<HeaderSkeleton />}>
-        <Header />
+        <Header walletReady={walletReady} loadingWallet={loadingWallet} />
       </Suspense>
       <main>
         <section id="swap" className="mx-auto max-w-7xl px-6 pt-14 md:pt-20 pb-10">
@@ -108,7 +140,7 @@ function DexLayout({
                   <SwapCard key={`${pair.from}-${pair.to}`} initialFrom={pair.from} initialTo={pair.to} />
                 </Suspense>
               ) : (
-                <SwapUnavailableCard loading={loadingWallet} />
+                <SwapUnavailableCard loading={loadingWallet} error={walletError} onRetry={onRetry} />
               )}
             </div>
           </div>
@@ -139,21 +171,40 @@ function SwapCardSkeleton() {
   return <div className="glass h-[430px] w-full max-w-md mx-auto rounded-3xl" aria-hidden />;
 }
 
-function SwapUnavailableCard({ loading }: { loading?: boolean }) {
+function SwapUnavailableCard({
+  loading,
+  error,
+  onRetry,
+}: {
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+}) {
   return (
     <div className="glass rounded-3xl p-6 shadow-[var(--shadow-card)] w-full max-w-md mx-auto">
       <h3 className="font-display text-lg font-semibold">Swap</h3>
       <p className="mt-3 text-sm text-muted-foreground">
         {loading
           ? "Loading secure wallet support…"
-          : "Wallet support could not load in this browser session. Refresh to retry."}
+          : error || "Wallet support could not load in this browser session."}
       </p>
-      <button
-        onClick={() => window.location.reload()}
-        className="mt-5 h-11 w-full rounded-2xl bg-[image:var(--grad-primary)] text-primary-foreground font-semibold"
-      >
-        Refresh
-      </button>
+      <div className="mt-5 grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={onRetry}
+          disabled={loading || !onRetry}
+          className="h-11 rounded-2xl border border-border bg-secondary/60 font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Try again
+        </button>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="h-11 rounded-2xl bg-[image:var(--grad-primary)] text-primary-foreground font-semibold"
+        >
+          Refresh to retry
+        </button>
+      </div>
     </div>
   );
 }
