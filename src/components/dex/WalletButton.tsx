@@ -72,21 +72,31 @@ export function emitWalletChange(nextAddress: string | null) {
  * MUST be called synchronously from a user gesture (no awaits before it).
  */
 export async function connectPhantomProvider(provider: PhantomProvider): Promise<string | null> {
-  let response: any;
-  if (typeof provider.request === "function") {
+  // Force a fresh auth prompt: if Phantom previously trusted this site it will
+  // silently reconnect without opening the extension. Disconnecting first
+  // ensures the user always sees the Phantom popup (unlock + approve).
+  if (provider.isConnected && typeof provider.disconnect === "function") {
     try {
-      response = await provider.request({ method: "connect" });
+      await provider.disconnect();
+    } catch {
+      // ignore — we'll still attempt to connect below
+    }
+  }
+
+  let response: any;
+  if (typeof provider.connect === "function") {
+    try {
+      response = await provider.connect();
     } catch (err) {
       const code = (err as { code?: number })?.code;
-      // -32603 = Phantom "Unexpected error", often when locked. Retry via connect().
-      if (code === -32603 && typeof provider.connect === "function") {
-        response = await provider.connect();
+      if (code === -32603 && typeof provider.request === "function") {
+        response = await provider.request({ method: "connect" });
       } else {
         throw err;
       }
     }
-  } else if (typeof provider.connect === "function") {
-    response = await provider.connect();
+  } else if (typeof provider.request === "function") {
+    response = await provider.request({ method: "connect" });
   } else {
     throw new Error("Phantom is installed but no connect method is available.");
   }
