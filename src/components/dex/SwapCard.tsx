@@ -283,7 +283,23 @@ export function SwapCard({
       )}
 
 
-      <div className="mt-4">
+      <div className="mt-5 space-y-2">
+        {walletAddress && quote && (
+          <button
+            type="button"
+            onClick={executeSwap}
+            disabled={swapping || loading || !quote}
+            className="w-full py-4 rounded-2xl text-lg font-bold text-white bg-[linear-gradient(90deg,#9945FF_0%,#14F195_100%)] shadow-lg hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+          >
+            {swapping ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" /> Swapping…
+              </>
+            ) : (
+              `Swap Now`
+            )}
+          </button>
+        )}
         <PhantomButton className="w-full py-3 text-base" />
       </div>
 
