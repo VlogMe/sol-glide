@@ -118,6 +118,65 @@ export function SwapCard({
     setAmount(outAmount || "");
   };
 
+  const executeSwap = async () => {
+    if (!quote) return;
+    const provider = (window as any).phantom?.solana ?? (window as any).solana;
+    if (!provider?.isPhantom || !walletAddress) {
+      toast.error("Connect Phantom first");
+      return;
+    }
+    setSwapping(true);
+    try {
+      const { swapTransaction } = await swapFn({
+        data: {
+          quoteResponse: quote,
+          userPublicKey: walletAddress,
+          wrapAndUnwrapSol: true,
+        },
+      });
+      const [{ Connection, VersionedTransaction }, { Buffer }] = await Promise.all([
+        import("@solana/web3.js"),
+        import("buffer"),
+      ]);
+      const txBuf = Buffer.from(swapTransaction, "base64");
+      const tx = VersionedTransaction.deserialize(txBuf);
+      const rpcUrl =
+        (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
+      const connection = new Connection(rpcUrl, "confirmed");
+
+      let signature: string;
+      if (typeof provider.signAndSendTransaction === "function") {
+        const res = await provider.signAndSendTransaction(tx);
+        signature = res?.signature ?? res;
+      } else {
+        const signed = await provider.signTransaction(tx);
+        signature = await connection.sendRawTransaction(signed.serialize(), {
+          skipPreflight: false,
+          maxRetries: 3,
+        });
+      }
+      toast.success(
+        <a
+          href={`https://solscan.io/tx/${signature}`}
+          target="_blank"
+          rel="noreferrer"
+          className="underline"
+        >
+          Swap sent — view on Solscan
+        </a>,
+      );
+      setAmount("");
+      setQuote(null);
+    } catch (e: any) {
+      console.error(e);
+      if (e?.code !== 4001) {
+        toast.error(friendlyError(String(e?.message || "Swap failed")));
+      }
+    } finally {
+      setSwapping(false);
+    }
+  };
+
   return (
     <div className="glass rounded-3xl p-5 md:p-6 shadow-[var(--shadow-card)] w-full max-w-md mx-auto">
       <div className="flex items-center justify-between mb-4">
