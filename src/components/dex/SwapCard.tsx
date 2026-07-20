@@ -22,6 +22,24 @@ function fmt(n: number, max = 6) {
   return n.toLocaleString(undefined, { maximumFractionDigits: max });
 }
 
+function decodeBase64Transaction(swapTransaction: string) {
+  if (!swapTransaction || typeof swapTransaction !== "string") {
+    throw new Error("Failed to get swap transaction from Jupiter. Please try again.");
+  }
+
+  try {
+    const binary = atob(swapTransaction);
+    const txBytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) txBytes[i] = binary.charCodeAt(i);
+    if (txBytes.length === 0) {
+      throw new Error("empty transaction");
+    }
+    return txBytes;
+  } catch {
+    throw new Error("Failed to prepare swap transaction. Please try again.");
+  }
+}
+
 export function SwapCard({
   initialFrom = "SOL",
   initialTo = "USDC",
@@ -127,18 +145,31 @@ export function SwapCard({
     }
     setSwapping(true);
     try {
-      const { swapTransaction } = await swapFn({
+      const swapResult = await swapFn({
         data: {
           quoteResponse: quote,
           userPublicKey: walletAddress,
           wrapAndUnwrapSol: true,
         },
       });
+      const swapTransaction = swapResult?.swapTransaction;
+      if (!swapTransaction) {
+        throw new Error("Failed to get swap transaction from Jupiter. Please try again.");
+      }
+
+      // Ensure Solana browser dependencies have Buffer/global before web3.js initializes.
+      await import("@/lib/buffer-polyfill");
       const { Connection, VersionedTransaction } = await import("@solana/web3.js");
-      const binary = atob(swapTransaction);
-      const txBuf = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) txBuf[i] = binary.charCodeAt(i);
-      const tx = VersionedTransaction.deserialize(txBuf);
+      if (!VersionedTransaction || typeof VersionedTransaction.deserialize !== "function") {
+        throw new Error("Failed to load Solana transaction support. Please refresh and try again.");
+      }
+
+      const txBytes = decodeBase64Transaction(swapTransaction);
+      const fromTransaction = (VersionedTransaction as unknown as { from?: (bytes: Uint8Array) => unknown }).from;
+      const tx =
+        typeof fromTransaction === "function"
+          ? fromTransaction.call(VersionedTransaction, txBytes)
+          : VersionedTransaction.deserialize(txBytes);
       const rpcUrl =
         (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
       const connection = new Connection(rpcUrl, "confirmed");
