@@ -197,6 +197,10 @@ export function SwapCard({
       )}
 
 
+      <div className="mt-4">
+        <PhantomButton className="w-full py-3 text-base" />
+      </div>
+
       <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
           <Info className="h-3 w-3" /> Non-custodial · 0.5% Platform Fee
