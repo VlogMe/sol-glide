@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { PopularPairs } from "./PopularPairs";
-import { Stats } from "./Stats";
 
 const Header = lazy(() => import("./Header").then((module) => ({ default: module.Header })));
 const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: module.SwapCard })));
@@ -56,7 +55,6 @@ function DexLayout({
               <div className="mt-6 flex flex-wrap gap-6 text-sm">
                 <Bullet>Best-price routing via Jupiter</Bullet>
                 <Bullet>0.5% flat platform fee</Bullet>
-                <Bullet>Your keys, your coins</Bullet>
               </div>
             </div>
             <div>
@@ -66,7 +64,6 @@ function DexLayout({
             </div>
           </div>
         </section>
-        <Stats />
         <PopularPairs
           onSelect={(from, to) => {
             setPair({ from, to });
