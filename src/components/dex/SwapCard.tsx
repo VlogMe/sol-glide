@@ -33,6 +33,21 @@ function friendlyError(raw: string): string {
 const NORMAL_FEE_BPS = 50;
 const VIP_FEE_BPS = 30;
 
+const DEBUG_SWAP =
+  (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_DEBUG_SWAP === "true") ||
+  (typeof window !== "undefined" && (window as any).__SOLPITCH_DEBUG_SWAP === true) ||
+  (typeof localStorage !== "undefined" && localStorage.getItem("solpitch:debug-swap") === "1");
+
+function debugLog(label: string, payload: Record<string, unknown>) {
+  if (!DEBUG_SWAP) return;
+  try {
+    // eslint-disable-next-line no-console
+    console.log(`[SwapCard:debug] ${label}`, payload);
+  } catch {
+    /* noop */
+  }
+}
+
 function fmt(n: number, max = 6) {
   if (!isFinite(n)) return "0";
   if (n === 0) return "0";
