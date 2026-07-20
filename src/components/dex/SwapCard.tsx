@@ -4,9 +4,9 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 
 import { TOKENS, type Token } from "@/lib/tokens";
-import { getJupiterQuote } from "@/lib/jupiter.functions";
+import { getJupiterQuote, getJupiterSwap } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
-import { PhantomButton, WALLET_DISCONNECT_EVENT } from "./PhantomButton";
+import { PhantomButton, WALLET_DISCONNECT_EVENT, WALLET_CONNECT_EVENT } from "./PhantomButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const NORMAL_FEE_BPS = 50;
@@ -35,9 +35,12 @@ export function SwapCard({
   const [slippageBps, setSlippageBps] = useState(50);
   const [quote, setQuote] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [swapping, setSwapping] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const quoteFn = useServerFn(getJupiterQuote);
+  const swapFn = useServerFn(getJupiterSwap);
 
   const feeBps = NORMAL_FEE_BPS;
 
@@ -79,10 +82,20 @@ export function SwapCard({
       setAmount("");
       setQuote(null);
       setLoading(false);
+      setSwapping(false);
       setSlippageBps(50);
+      setWalletAddress(null);
+    };
+    const onConnect = (e: Event) => {
+      const addr = (e as CustomEvent).detail?.address;
+      if (typeof addr === "string") setWalletAddress(addr);
     };
     window.addEventListener(WALLET_DISCONNECT_EVENT, onDisconnect);
-    return () => window.removeEventListener(WALLET_DISCONNECT_EVENT, onDisconnect);
+    window.addEventListener(WALLET_CONNECT_EVENT, onConnect as EventListener);
+    return () => {
+      window.removeEventListener(WALLET_DISCONNECT_EVENT, onDisconnect);
+      window.removeEventListener(WALLET_CONNECT_EVENT, onConnect as EventListener);
+    };
   }, []);
 
   const outAmount = useMemo(() => {
@@ -103,6 +116,65 @@ export function SwapCard({
     setFrom(to);
     setTo(from);
     setAmount(outAmount || "");
+  };
+
+  const executeSwap = async () => {
+    if (!quote) return;
+    const provider = (window as any).phantom?.solana ?? (window as any).solana;
+    if (!provider?.isPhantom || !walletAddress) {
+      toast.error("Connect Phantom first");
+      return;
+    }
+    setSwapping(true);
+    try {
+      const { swapTransaction } = await swapFn({
+        data: {
+          quoteResponse: quote,
+          userPublicKey: walletAddress,
+          wrapAndUnwrapSol: true,
+        },
+      });
+      const [{ Connection, VersionedTransaction }, { Buffer }] = await Promise.all([
+        import("@solana/web3.js"),
+        import("buffer"),
+      ]);
+      const txBuf = Buffer.from(swapTransaction, "base64");
+      const tx = VersionedTransaction.deserialize(txBuf);
+      const rpcUrl =
+        (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
+      const connection = new Connection(rpcUrl, "confirmed");
+
+      let signature: string;
+      if (typeof provider.signAndSendTransaction === "function") {
+        const res = await provider.signAndSendTransaction(tx);
+        signature = res?.signature ?? res;
+      } else {
+        const signed = await provider.signTransaction(tx);
+        signature = await connection.sendRawTransaction(signed.serialize(), {
+          skipPreflight: false,
+          maxRetries: 3,
+        });
+      }
+      toast.success(
+        <a
+          href={`https://solscan.io/tx/${signature}`}
+          target="_blank"
+          rel="noreferrer"
+          className="underline"
+        >
+          Swap sent — view on Solscan
+        </a>,
+      );
+      setAmount("");
+      setQuote(null);
+    } catch (e: any) {
+      console.error(e);
+      if (e?.code !== 4001) {
+        toast.error(friendlyError(String(e?.message || "Swap failed")));
+      }
+    } finally {
+      setSwapping(false);
+    }
   };
 
   return (
@@ -211,7 +283,23 @@ export function SwapCard({
       )}
 
 
-      <div className="mt-4">
+      <div className="mt-5 space-y-2">
+        {walletAddress && quote && (
+          <button
+            type="button"
+            onClick={executeSwap}
+            disabled={swapping || loading || !quote}
+            className="w-full py-4 rounded-2xl text-lg font-bold text-white bg-[linear-gradient(90deg,#9945FF_0%,#14F195_100%)] shadow-lg hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+          >
+            {swapping ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" /> Swapping…
+              </>
+            ) : (
+              `Swap Now`
+            )}
+          </button>
+        )}
         <PhantomButton className="w-full py-3 text-base" />
       </div>
 
