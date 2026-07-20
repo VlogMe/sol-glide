@@ -6,7 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { TOKENS, type Token } from "@/lib/tokens";
 import { getJupiterQuote } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
-import { PhantomButton } from "./PhantomButton";
+import { PhantomButton, WALLET_DISCONNECT_EVENT } from "./PhantomButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const NORMAL_FEE_BPS = 50;
@@ -70,6 +70,20 @@ export function SwapCard({
       if (debounce.current) clearTimeout(debounce.current);
     };
   }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals]);
+
+  // Fully reset swap UI when the wallet disconnects: clear amount, quote,
+  // route info, loading flag, and any in-flight debounce.
+  useEffect(() => {
+    const onDisconnect = () => {
+      if (debounce.current) clearTimeout(debounce.current);
+      setAmount("");
+      setQuote(null);
+      setLoading(false);
+      setSlippageBps(50);
+    };
+    window.addEventListener(WALLET_DISCONNECT_EVENT, onDisconnect);
+    return () => window.removeEventListener(WALLET_DISCONNECT_EVENT, onDisconnect);
+  }, []);
 
   const outAmount = useMemo(() => {
     if (!quote?.outAmount) return "";
