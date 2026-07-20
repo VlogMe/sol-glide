@@ -74,9 +74,10 @@ export function PhantomButton({
     }
     try {
       setBusy(true);
-      // Force the Phantom approval popup — never trust a cached session.
-      const res = await provider.connect({ onlyIfTrusted: false });
-      const pk = res?.publicKey?.toString?.();
+      // Call connect() with no args — passing options like { onlyIfTrusted: false }
+      // is non-standard and can cause Phantom to hang without showing a popup.
+      const res = await provider.connect();
+      const pk = res?.publicKey?.toString?.() ?? provider.publicKey?.toString?.();
       if (!pk) throw new Error("No public key returned");
       setAddress(pk);
     } catch (e: any) {
