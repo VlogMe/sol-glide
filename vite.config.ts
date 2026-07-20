@@ -1,5 +1,6 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import path from "node:path";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 const rpcWebsocketsBrowser = path.resolve(
   process.cwd(),
@@ -11,6 +12,13 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    plugins: [
+      nodePolyfills({
+        include: ["buffer", "process", "util", "stream", "events"],
+        globals: { Buffer: true, global: true, process: true },
+        protocolImports: true,
+      }),
+    ],
     ssr: {
       noExternal: [
         "@solana/web3.js",
@@ -24,16 +32,14 @@ export default defineConfig({
       ],
     },
     optimizeDeps: {
-      include: ["@solana/web3.js", "rpc-websockets"],
+      include: ["@solana/web3.js", "rpc-websockets", "buffer"],
     },
     define: {
-      "process.env.ANCHOR_BROWSER": "true",
       global: "globalThis",
     },
     resolve: {
       alias: [
         { find: /^rpc-websockets$/, replacement: rpcWebsocketsBrowser },
-        { find: "buffer", replacement: "buffer" },
       ],
     },
   },
