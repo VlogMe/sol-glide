@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 declare global {
@@ -25,6 +25,12 @@ function short(addr: string) {
   return `${addr.slice(0, 4)}…${addr.slice(-4)}`;
 }
 
+const SIGN_IN_MESSAGE = "SOLPITCH SWAP sign-in\nApprove this message to connect Phantom.";
+
+function isSameAddress(a: string, b: string) {
+  return a === b;
+}
+
 export function PhantomButton({
   className = "",
   size = "md",
@@ -34,29 +40,27 @@ export function PhantomButton({
 }) {
   const [address, setAddress] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const approvedAddress = useRef<string | null>(null);
 
   useEffect(() => {
     const p = getProvider();
+    approvedAddress.current = null;
+    setAddress(null);
     if (!p) return;
-    // Do NOT eagerly call p.disconnect() here — it puts Phantom into a
-    // transient state where the next connect() can hang without a popup.
-    // We simply never call connect({ onlyIfTrusted: true }), so no session
-    // is auto-restored on load.
+    // Never read provider.publicKey or call trusted auto-connect here. The UI
+    // must start disconnected and only show an address after a fresh signature.
     const onDisconnect = () => {
+      approvedAddress.current = null;
       setAddress(null);
       broadcastDisconnect();
     };
     const onAccountChanged = (pk: any) => {
-      // Only reflect account changes while we already have an approved session.
-      // Prevents Phantom from silently populating an address on mount.
-      setAddress((prev) => {
-        if (!prev) return null;
-        if (!pk) {
-          broadcastDisconnect();
-          return null;
-        }
-        return pk.toString();
-      });
+      const next = pk?.toString?.() ?? null;
+      if (!approvedAddress.current || !next || !isSameAddress(approvedAddress.current, next)) {
+        approvedAddress.current = null;
+        setAddress(null);
+        broadcastDisconnect();
+      }
     };
     p.on?.("disconnect", onDisconnect);
     p.on?.("accountChanged", onAccountChanged);
@@ -74,13 +78,23 @@ export function PhantomButton({
     }
     try {
       setBusy(true);
-      // Call connect() with no args — passing options like { onlyIfTrusted: false }
-      // is non-standard and can cause Phantom to hang without showing a popup.
       const res = await provider.connect();
       const pk = res?.publicKey?.toString?.() ?? provider.publicKey?.toString?.();
       if (!pk) throw new Error("No public key returned");
+
+      if (typeof provider.signMessage !== "function") {
+        throw new Error("Phantom message signing is unavailable");
+      }
+
+      const message = new TextEncoder().encode(`${SIGN_IN_MESSAGE}\nWallet: ${pk}`);
+      await provider.signMessage(message, "utf8");
+
+      approvedAddress.current = pk;
       setAddress(pk);
+      toast.success("Phantom connected");
     } catch (e: any) {
+      approvedAddress.current = null;
+      setAddress(null);
       if (e?.code !== 4001) toast.error(e?.message || "Failed to connect Phantom");
     } finally {
       setBusy(false);
@@ -101,6 +115,7 @@ export function PhantomButton({
         }
       }
     } catch {}
+    approvedAddress.current = null;
     setAddress(null);
     broadcastDisconnect();
     toast.success("Wallet disconnected");
