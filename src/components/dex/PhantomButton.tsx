@@ -97,6 +97,7 @@ export function PhantomButton({
 
       approvedAddress.current = pk;
       setAddress(pk);
+      broadcastConnect(pk);
       toast.success("Phantom connected");
     } catch (e: any) {
       approvedAddress.current = null;
