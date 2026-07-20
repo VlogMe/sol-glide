@@ -3,8 +3,7 @@ import { ClientOnly } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 
 const DexApp = lazy(() =>
-  import("@/lib/buffer-polyfill")
-    .then(() => import("@/components/dex/DexApp"))
+  import("@/components/dex/DexApp")
     .then((module) => ({ default: module.DexApp }))
     .catch((error) => {
       console.error("Failed to load SOLPITCH SWAP", error);
@@ -20,10 +19,10 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Get the best prices by routing across all major Solana DEXes. Instant, secure, and non-custodial swaps with Phantom, Solflare, and Backpack support.",
+          "Get the best prices by routing across all major Solana DEXes. Instant, secure, and non-custodial swaps with Phantom support.",
       },
       { property: "og:title", content: "SOLPITCH SWAP — Fast Non-Custodial Solana Swaps" },
-      { property: "og:description", content: "Get the best prices by routing across all major Solana DEXes. Instant, secure, and non-custodial swaps with Phantom, Solflare, and Backpack support." },
+      { property: "og:description", content: "Get the best prices by routing across all major Solana DEXes. Instant, secure, and non-custodial swaps with Phantom support." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

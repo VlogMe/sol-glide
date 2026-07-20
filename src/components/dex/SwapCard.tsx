@@ -8,7 +8,21 @@ import { getJupiterQuote, getJupiterSwap, logSwap, getSpddTier } from "@/lib/jup
 import { TokenSelect } from "./TokenSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { WalletButton } from "./WalletButton";
-import { useSolpitchWallet } from "./wallet-runtime";
+
+type PhantomProvider = {
+  isPhantom?: boolean;
+  isConnected?: boolean;
+  publicKey?: { toBase58?: () => string; toString?: () => string } | string | null;
+  signTransaction?: (transaction: unknown) => Promise<{ serialize: () => Uint8Array }>;
+  on?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
+  off?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
+  removeListener?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
+};
+
+type PhantomWindow = typeof window & {
+  solana?: PhantomProvider;
+  phantom?: { solana?: PhantomProvider };
+};
 
 function friendlyError(raw: string): string {
   const s = raw.toLowerCase();
@@ -30,8 +44,6 @@ function friendlyError(raw: string): string {
 
 
 const NORMAL_FEE_BPS = 50;
-const VIP_FEE_BPS = 30;
-
 const DEBUG_SWAP =
   (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_DEBUG_SWAP === "true") ||
   (typeof window !== "undefined" && (window as any).__SOLPITCH_DEBUG_SWAP === true) ||
@@ -45,6 +57,74 @@ function debugLog(label: string, payload: Record<string, unknown>) {
   } catch {
     /* noop */
   }
+}
+
+function getPhantom(): PhantomProvider | null {
+  if (typeof window === "undefined") return null;
+  const w = window as PhantomWindow;
+  if (w.solana?.isPhantom) return w.solana;
+  if (w.phantom?.solana?.isPhantom) return w.phantom.solana;
+  return null;
+}
+
+function publicKeyToString(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    const key = value as { toBase58?: () => string; toString?: () => string };
+    if (typeof key.toBase58 === "function") return key.toBase58();
+    if (typeof key.toString === "function") {
+      const address = key.toString();
+      return address && address !== "[object Object]" ? address : null;
+    }
+  }
+  return null;
+}
+
+async function sendRpc(method: string, params: unknown[]) {
+  const response = await fetch("/api/rpc", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method, params }),
+  });
+  const json = await response.json().catch(() => null);
+  if (!response.ok || json?.error) {
+    throw new Error(json?.error?.message || `Solana RPC ${method} failed`);
+  }
+  return json.result;
+}
+
+function usePhantomAddress() {
+  const [address, setAddress] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const provider = getPhantom();
+    return provider?.isConnected ? publicKeyToString(provider.publicKey) : null;
+  });
+
+  useEffect(() => {
+    const provider = getPhantom();
+    const sync = (value?: unknown) => setAddress(publicKeyToString(value ?? provider?.publicKey));
+    const clear = () => setAddress(null);
+    const customSync = (event: Event) => setAddress((event as CustomEvent<{ address?: string | null }>).detail?.address ?? null);
+
+    if (provider?.isConnected) sync();
+    provider?.on?.("connect", sync);
+    provider?.on?.("accountChanged", sync);
+    provider?.on?.("disconnect", clear);
+    window.addEventListener("solpitch:phantom-wallet", customSync);
+
+    return () => {
+      provider?.off?.("connect", sync);
+      provider?.off?.("accountChanged", sync);
+      provider?.off?.("disconnect", clear);
+      provider?.removeListener?.("connect", sync);
+      provider?.removeListener?.("accountChanged", sync);
+      provider?.removeListener?.("disconnect", clear);
+      window.removeEventListener("solpitch:phantom-wallet", customSync);
+    };
+  }, []);
+
+  return address;
 }
 
 function fmt(n: number, max = 6) {
@@ -64,7 +144,8 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   const [swapping, setSwapping] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { publicKey, signTransaction, connected, connection } = useSolpitchWallet();
+  const walletAddress = usePhantomAddress();
+  const connected = !!walletAddress;
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
   const logFn = useServerFn(logSwap);
@@ -74,15 +155,14 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
 
   // Check SPDD tier on wallet connect
   useEffect(() => {
-    if (!connected || !publicKey) {
+    if (!walletAddress) {
       setTier(null);
       return;
     }
-    const pk = publicKey.toBase58();
-    tierFn({ data: { userPublicKey: pk } })
+    tierFn({ data: { userPublicKey: walletAddress } })
       .then((t) => setTier(t))
       .catch(() => setTier(null));
-  }, [connected, publicKey, tierFn]);
+  }, [walletAddress, tierFn]);
 
   const feeBps = tier?.feeBps ?? NORMAL_FEE_BPS;
   const isVip = !!tier?.isVip;
@@ -105,7 +185,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
           outputMint: to.mint,
           outputSymbol: to.symbol,
           slippageBps,
-          userPublicKey: connected && publicKey ? publicKey.toBase58() : null,
+          userPublicKey: walletAddress,
         });
         const q = await quoteFn({
           data: {
@@ -113,7 +193,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
             outputMint: to.mint,
             amount: raw,
             slippageBps,
-            ...(connected && publicKey ? { userPublicKey: publicKey.toBase58() } : {}),
+            ...(walletAddress ? { userPublicKey: walletAddress } : {}),
           },
         });
         debugLog("quote:response", {
@@ -135,7 +215,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
     return () => {
       if (debounce.current) clearTimeout(debounce.current);
     };
-  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals, connected, publicKey, isVip]);
+  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals, walletAddress, isVip]);
 
   const outAmount = useMemo(() => {
     if (!quote?.outAmount) return "";
@@ -158,12 +238,14 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   };
 
   const handleSwap = async () => {
-    if (!connected || !publicKey || !signTransaction) {
-      toast.error("Connect your wallet first");
+    const provider = getPhantom();
+    const currentAddress = publicKeyToString(provider?.publicKey) ?? walletAddress;
+    if (!provider?.isConnected || !currentAddress) {
+      toast.error("Connect Phantom first");
       return;
     }
-    if (!connection?.sendRawTransaction || !connection?.getLatestBlockhash || !connection?.confirmTransaction) {
-      const msg = "Solana connection is still loading. Please try again.";
+    if (!provider.signTransaction) {
+      const msg = "Phantom cannot sign this transaction. Please update Phantom and try again.";
       setLastError(msg);
       toast.error(msg);
       return;
@@ -175,7 +257,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       let swapTransaction: string | undefined;
       try {
         const res = await swapFn({
-          data: { quoteResponse: quote, userPublicKey: publicKey.toBase58() },
+          data: { quoteResponse: quote, userPublicKey: currentAddress },
         });
         swapTransaction = res?.swapTransaction;
       } catch (err) {
@@ -195,11 +277,13 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
         console.error("deserialize failed", err);
         throw new Error("Failed to prepare swap. Please try again.");
       }
-      const signed = (await signTransaction(tx)) as { serialize: () => Uint8Array };
-      const sig = await connection.sendRawTransaction(signed.serialize(), {
-        skipPreflight: false,
-        maxRetries: 3,
-      });
+      const signed = await provider.signTransaction(tx);
+      if (!signed?.serialize) throw new Error("Failed to prepare swap. Please try again.");
+      const rawTx = signed.serialize();
+      const binary = Array.from(rawTx, (byte) => String.fromCharCode(byte)).join("");
+      const encodedTx = btoa(binary);
+      const sig = await sendRpc("sendTransaction", [encodedTx, { encoding: "base64", skipPreflight: false, maxRetries: 3 }]);
+      if (!sig || typeof sig !== "string") throw new Error("Swap submission failed. Please try again.");
       toast.success("Swap submitted", {
         description: sig.slice(0, 8) + "…",
         action: {
@@ -207,8 +291,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
           onClick: () => window.open(`https://solscan.io/tx/${sig}`, "_blank"),
         },
       });
-      const latest = await connection.getLatestBlockhash();
-      await connection.confirmTransaction({ signature: sig, ...latest }, "confirmed");
+      await sendRpc("confirmTransaction", [sig, "confirmed"]);
       toast.success("Swap confirmed ✔");
       logFn({
         data: {
@@ -363,8 +446,8 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
 
       <div className="mt-5">
         {!connected ? (
-          <div className="[&_.wallet-adapter-button]:!w-full [&_.wallet-adapter-button]:!h-12 [&_.wallet-adapter-button]:!justify-center [&_.wallet-adapter-button]:!rounded-2xl [&_.wallet-adapter-button]:!bg-[image:var(--grad-primary)] [&_.wallet-adapter-button]:!text-primary-foreground [&_.wallet-adapter-button]:!font-semibold [&_.wallet-adapter-button]:!text-base">
-            <WalletButton>Connect Wallet</WalletButton>
+          <div>
+            <WalletButton />
           </div>
         ) : (
           <button
@@ -397,7 +480,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
             onClick={() => {
               setLastError(null);
               setAmount((a) => a);
-              if (connected && quote) handleSwap();
+              if (walletAddress && quote) handleSwap();
             }}
             className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-1 hover:bg-destructive/20"
           >

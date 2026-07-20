@@ -1,25 +1,117 @@
-import { useCallback, type ReactNode } from "react";
-import { useSolpitchWallet } from "./wallet-runtime";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+
+type PhantomProvider = {
+  isPhantom?: boolean;
+  isConnected?: boolean;
+  publicKey?: { toBase58?: () => string; toString?: () => string } | string | null;
+  connect: () => Promise<{ publicKey?: PhantomProvider["publicKey"] } | void>;
+  disconnect?: () => Promise<void>;
+  on?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
+  off?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
+  removeListener?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
+};
+
+type PhantomWindow = typeof window & {
+  solana?: PhantomProvider;
+  phantom?: { solana?: PhantomProvider };
+};
 
 function shortAddr(addr: string) {
   return `${addr.slice(0, 4)}…${addr.slice(-4)}`;
 }
 
+function getPhantom(): PhantomProvider | null {
+  if (typeof window === "undefined") return null;
+  const w = window as PhantomWindow;
+  if (w.solana?.isPhantom) return w.solana;
+  if (w.phantom?.solana?.isPhantom) return w.phantom.solana;
+  return null;
+}
+
+function publicKeyToString(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    const key = value as { toBase58?: () => string; toString?: () => string };
+    if (typeof key.toBase58 === "function") return key.toBase58();
+    if (typeof key.toString === "function") {
+      const address = key.toString();
+      return address && address !== "[object Object]" ? address : null;
+    }
+  }
+  return null;
+}
+
+export function getConnectedPhantomAddress() {
+  const provider = getPhantom();
+  if (!provider?.isConnected) return null;
+  return publicKeyToString(provider.publicKey);
+}
+
 export function WalletButton({ children }: { children?: ReactNode }) {
-  const { publicKey, connected, connecting, walletError, connect } = useSolpitchWallet();
+  const [address, setAddress] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const provider = getPhantom();
+    const sync = (value?: unknown) => {
+      const nextAddress = publicKeyToString(value ?? provider?.publicKey);
+      setAddress(nextAddress);
+      window.dispatchEvent(new CustomEvent("solpitch:phantom-wallet", { detail: { address: nextAddress } }));
+    };
+    const clear = () => {
+      setAddress(null);
+      window.dispatchEvent(new CustomEvent("solpitch:phantom-wallet", { detail: { address: null } }));
+    };
+
+    if (provider?.isConnected) sync();
+    provider?.on?.("connect", sync);
+    provider?.on?.("accountChanged", sync);
+    provider?.on?.("disconnect", clear);
+
+    return () => {
+      provider?.off?.("connect", sync);
+      provider?.off?.("accountChanged", sync);
+      provider?.off?.("disconnect", clear);
+      provider?.removeListener?.("connect", sync);
+      provider?.removeListener?.("accountChanged", sync);
+      provider?.removeListener?.("disconnect", clear);
+    };
+  }, []);
 
   const connectPhantom = useCallback(() => {
-    try {
-      void connect();
-    } catch (err) {
-      console.error("Wallet action failed", err);
+    console.log("Connect Phantom clicked");
+    const provider = getPhantom();
+    if (!provider) {
+      const msg = "Phantom wallet is not installed.";
+      setWalletError(msg);
+      window.open("https://phantom.app/download", "_blank", "noopener,noreferrer");
+      return;
     }
-  }, [connect]);
+
+    setConnecting(true);
+    setWalletError(null);
+    provider
+      .connect()
+      .then((response) => {
+        const nextAddress = publicKeyToString(response?.publicKey ?? provider.publicKey);
+        if (!nextAddress) throw new Error("Phantom did not return a wallet address.");
+        setAddress(nextAddress);
+        window.dispatchEvent(new CustomEvent("solpitch:phantom-wallet", { detail: { address: nextAddress } }));
+      })
+      .catch((err) => {
+        console.error("Phantom connection failed", err);
+        const message = err instanceof Error && err.message ? err.message : "Could not connect Phantom. Please try again.";
+        setWalletError(message);
+      })
+      .finally(() => setConnecting(false));
+  }, []);
 
   const label = connecting
     ? "Connecting..."
-    : connected && publicKey
-      ? shortAddr(publicKey.toBase58())
+    : address
+      ? shortAddr(address)
       : (children ?? "Connect Phantom");
 
   return (
