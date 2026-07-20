@@ -37,11 +37,21 @@ export function PhantomButton({
     try {
       p.disconnect?.();
     } catch {}
-    const onDisconnect = () => setAddress(null);
+    const onDisconnect = () => {
+      setAddress(null);
+      broadcastDisconnect();
+    };
     const onAccountChanged = (pk: any) => {
       // Only reflect account changes while we already have an approved session.
       // Prevents Phantom from silently populating an address on mount.
-      setAddress((prev) => (prev && pk ? pk.toString() : prev ? null : null));
+      setAddress((prev) => {
+        if (!prev) return null;
+        if (!pk) {
+          broadcastDisconnect();
+          return null;
+        }
+        return pk.toString();
+      });
     };
     p.on?.("disconnect", onDisconnect);
     p.on?.("accountChanged", onAccountChanged);
@@ -76,7 +86,18 @@ export function PhantomButton({
     try {
       await provider?.disconnect?.();
     } catch {}
+    // Best-effort: clear any wallet-adapter localStorage that a prior build may
+    // have left behind so a refresh cannot resurrect a "connected" state.
+    try {
+      if (typeof window !== "undefined") {
+        for (const key of Object.keys(window.localStorage)) {
+          if (/wallet|phantom|solana/i.test(key)) window.localStorage.removeItem(key);
+        }
+      }
+    } catch {}
     setAddress(null);
+    broadcastDisconnect();
+    toast.success("Wallet disconnected");
   };
 
   const pad = size === "sm" ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm";
