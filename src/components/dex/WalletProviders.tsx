@@ -66,20 +66,16 @@ export function WalletProviders({
         // Load the Buffer/global polyfill before any Solana package evaluates.
         await import("@/lib/buffer-polyfill");
 
-        const [reactAdapter, reactUi, phantom, solflare, backpack] = await Promise.all([
+        const [reactAdapter, reactUi, phantom] = await Promise.all([
           import("@solana/wallet-adapter-react"),
           import("@solana/wallet-adapter-react-ui"),
           import("@solana/wallet-adapter-phantom"),
-          import("@solana/wallet-adapter-solflare"),
-          import("@solana/wallet-adapter-backpack"),
         ]);
 
         if (cancelled) return;
 
         const wallets = [
           safeAdapter(phantom.PhantomWalletAdapter, "Phantom"),
-          safeAdapter(solflare.SolflareWalletAdapter, "Solflare"),
-          safeAdapter(backpack.BackpackWalletAdapter, "Backpack"),
         ].filter(Boolean) as unknown[];
 
         const RuntimeBridge: WalletRuntime["RuntimeBridge"] = ({ children }) => {
