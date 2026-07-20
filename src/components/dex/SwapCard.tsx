@@ -347,7 +347,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
               title="Hold 1,000,000+ $SPDD for 0.30% fee (40% discount)"
               className="hidden sm:inline-flex items-center gap-1 rounded-full border border-border bg-secondary/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground cursor-help"
             >
-              Hold 100k SPDD → 0.30%
+              Hold 1M SPDD → 0.30%
             </span>
           )}
         </div>
