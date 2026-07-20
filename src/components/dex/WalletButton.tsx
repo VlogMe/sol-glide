@@ -1,35 +1,91 @@
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+
+type WalletRuntime = {
+  useWallet: () => {
+    publicKey: { toBase58: () => string } | null;
+    connected: boolean;
+    connecting: boolean;
+    disconnect: () => Promise<void>;
+  };
+  useWalletModal: () => { setVisible: (v: boolean) => void };
+};
+
+function shortAddr(addr: string) {
+  return `${addr.slice(0, 4)}…${addr.slice(-4)}`;
+}
+
+function ConnectButtonInner({
+  runtime,
+  children,
+}: {
+  runtime: WalletRuntime;
+  children?: ReactNode;
+}) {
+  const { publicKey, connected, connecting, disconnect } = runtime.useWallet();
+  const { setVisible } = runtime.useWalletModal();
+
+  const onClick = useCallback(() => {
+    try {
+      if (connected) {
+        void disconnect();
+      } else {
+        setVisible(true);
+      }
+    } catch (err) {
+      console.error("Wallet action failed", err);
+    }
+  }, [connected, disconnect, setVisible]);
+
+  const label = connecting
+    ? "Connecting…"
+    : connected && publicKey
+      ? shortAddr(publicKey.toBase58())
+      : (children ?? "Connect Wallet");
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="wallet-adapter-button wallet-adapter-button-trigger"
+    >
+      {label}
+    </button>
+  );
+}
 
 export function WalletButton({ children }: { children?: ReactNode }) {
-  const [Button, setButton] = useState<ComponentType<{ children?: ReactNode }> | null>(null);
+  const [runtime, setRuntime] = useState<WalletRuntime | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-
-    async function loadButton() {
+    (async () => {
       try {
         await import("@/lib/buffer-polyfill");
-        const module = await import("@solana/wallet-adapter-react-ui");
-        if (!cancelled) setButton(() => module.WalletMultiButton as ComponentType<{ children?: ReactNode }>);
-      } catch (error) {
-        console.error("Failed to load wallet button", error);
+        const [reactAdapter, reactUi] = await Promise.all([
+          import("@solana/wallet-adapter-react"),
+          import("@solana/wallet-adapter-react-ui"),
+        ]);
+        if (cancelled) return;
+        setRuntime({
+          useWallet: reactAdapter.useWallet as WalletRuntime["useWallet"],
+          useWalletModal: reactUi.useWalletModal as WalletRuntime["useWalletModal"],
+        });
+      } catch (err) {
+        console.error("Failed to load wallet button", err);
         if (!cancelled) setFailed(true);
       }
-    }
-
-    loadButton();
-
+    })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (Button) {
+  if (runtime) {
     try {
-      return <Button>{children}</Button>;
+      return <ConnectButtonInner runtime={runtime}>{children}</ConnectButtonInner>;
     } catch (err) {
-      console.error("WalletMultiButton render failed", err);
+      console.error("Wallet button render failed", err);
       return (
         <button
           type="button"
@@ -45,11 +101,13 @@ export function WalletButton({ children }: { children?: ReactNode }) {
   return (
     <button
       type="button"
-      onClick={() => failed && window.location.reload()}
-      disabled={!failed}
+      onClick={() => {
+        if (failed) window.location.reload();
+        else console.log("Wallet adapter still loading…");
+      }}
       className="wallet-adapter-button wallet-adapter-button-trigger"
     >
-      {failed ? "Refresh to retry" : (children ?? "Select Wallet")}
+      {failed ? "Refresh to retry" : (children ?? "Connect Wallet")}
     </button>
   );
 }
