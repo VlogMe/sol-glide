@@ -77,12 +77,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "SOLPITCH SWAP — Fastest Solana DEX Aggregator" },
-      { name: "description", content: "SOLPITCH SWAP — non-custodial Solana DEX aggregator with best-price routing via Jupiter. Sub-second swaps, 0.5% flat fee, VIP discount for SPDD holders." },
-      { property: "og:title", content: "SOLPITCH SWAP — Fastest Solana DEX Aggregator" },
-      { property: "og:description", content: "Non-custodial Solana swaps. Best price, sub-second execution." },
+      { title: "SOLPITCH SWAP — Fast Non-Custodial Solana Swaps" },
+      { name: "description", content: "Get the best prices by routing across all major Solana DEXes. Instant, secure, and non-custodial swaps with Phantom, Solflare, and Backpack support." },
+      { property: "og:title", content: "SOLPITCH SWAP — Fast Non-Custodial Solana Swaps" },
+      { property: "og:description", content: "Get the best prices by routing across all major Solana DEXes. Instant, secure, and non-custodial swaps with Phantom, Solflare, and Backpack support." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "SOLPITCH SWAP — Fast Non-Custodial Solana Swaps" },
+      { name: "twitter:description", content: "Get the best prices by routing across all major Solana DEXes. Instant, secure, and non-custodial swaps with Phantom, Solflare, and Backpack support." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c3ae21ba-0a6d-46b1-8c1d-40a00852e3fd/id-preview-ff40b027--29f408d0-0606-45f3-ac63-d92bb9ff8bf1.lovable.app-1784510011729.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c3ae21ba-0a6d-46b1-8c1d-40a00852e3fd/id-preview-ff40b027--29f408d0-0606-45f3-ac63-d92bb9ff8bf1.lovable.app-1784510011729.png" },
     ],
     links: [
       {
