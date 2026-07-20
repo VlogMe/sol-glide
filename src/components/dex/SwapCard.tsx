@@ -280,9 +280,9 @@ export function SwapCard({
     }
     try {
       if (!walletAddress) {
-        setSwapping(true);
-        // Fire connect immediately — do NOT await anything before this line.
+        // Fire connect immediately — do NOT set state or await anything before this line.
         const connectPromise = onWalletConnect();
+        setSwapping(true);
         const address = await connectPromise;
         if (!address) {
           setSwapping(false);
