@@ -4,12 +4,8 @@ type SolpitchWalletRuntime = {
   publicKey: { toBase58: () => string } | null;
   connected: boolean;
   connecting: boolean;
-  signTransaction?: (transaction: unknown) => Promise<any>;
-  connection: {
-    sendRawTransaction?: (rawTransaction: Uint8Array | Buffer, options?: unknown) => Promise<string>;
-    getLatestBlockhash?: () => Promise<any>;
-    confirmTransaction?: (strategy: any, commitment?: string) => Promise<any>;
-  } | null;
+  signTransaction?: any;
+  connection: any | null;
   walletModal: {
     visible: boolean;
     show: () => void;
