@@ -1,5 +1,7 @@
 import logoAsset from "@/assets/solpitch-logo.png.asset.json";
-import { WalletButton } from "./WalletButton";
+import { lazy, Suspense } from "react";
+
+const WalletButton = lazy(() => import("./WalletButton").then((module) => ({ default: module.WalletButton })));
 
 export function Header({ walletReady = true }: { walletReady?: boolean; loadingWallet?: boolean }) {
   const queueWalletModalOpen = () => {
@@ -30,18 +32,26 @@ export function Header({ walletReady = true }: { walletReady?: boolean; loadingW
         </nav>
         <div className="wallet-btn-wrap">
           {walletReady ? (
-            <WalletButton />
+            <Suspense fallback={<StaticConnectButton onClick={queueWalletModalOpen} />}>
+              <WalletButton />
+            </Suspense>
           ) : (
-            <button
-              type="button"
-              onClick={queueWalletModalOpen}
-              className="inline-flex h-11 min-w-[150px] items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            >
-              Connect Wallet
-            </button>
+            <StaticConnectButton onClick={queueWalletModalOpen} />
           )}
         </div>
       </div>
     </header>
+  );
+}
+
+function StaticConnectButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-11 min-w-[150px] items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    >
+      Connect Wallet
+    </button>
   );
 }
