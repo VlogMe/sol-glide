@@ -31,8 +31,18 @@ export function PhantomButton({
   useEffect(() => {
     const p = getProvider();
     if (!p) return;
+    // Ensure we start disconnected on every page load — never trust an
+    // eager/cached Phantom session. Only a user-approved connect() below
+    // will set the address.
+    try {
+      p.disconnect?.();
+    } catch {}
     const onDisconnect = () => setAddress(null);
-    const onAccountChanged = (pk: any) => setAddress(pk ? pk.toString() : null);
+    const onAccountChanged = (pk: any) => {
+      // Only reflect account changes while we already have an approved session.
+      // Prevents Phantom from silently populating an address on mount.
+      setAddress((prev) => (prev && pk ? pk.toString() : prev ? null : null));
+    };
     p.on?.("disconnect", onDisconnect);
     p.on?.("accountChanged", onAccountChanged);
     return () => {
@@ -49,8 +59,9 @@ export function PhantomButton({
     }
     try {
       setBusy(true);
-      const res = await provider.connect();
-      const pk = res?.publicKey?.toString?.() ?? provider.publicKey?.toString?.();
+      // Force the Phantom approval popup — never trust a cached session.
+      const res = await provider.connect({ onlyIfTrusted: false });
+      const pk = res?.publicKey?.toString?.();
       if (!pk) throw new Error("No public key returned");
       setAddress(pk);
     } catch (e: any) {
