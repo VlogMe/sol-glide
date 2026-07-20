@@ -1,5 +1,9 @@
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { lazy, Suspense } from "react";
 import logoAsset from "@/assets/solpitch-logo.png.asset.json";
+
+const WalletButton = lazy(() =>
+  import("./WalletButton").then((module) => ({ default: module.WalletButton })),
+);
 
 export function Header() {
   return (
@@ -21,7 +25,9 @@ export function Header() {
           <a href="#stats" className="hover:text-foreground transition-colors">Stats</a>
         </nav>
         <div className="wallet-btn-wrap">
-          <WalletMultiButton />
+          <Suspense fallback={<div className="h-10 w-32 rounded-xl bg-secondary/70" aria-hidden />}>
+            <WalletButton />
+          </Suspense>
         </div>
       </div>
       <style>{`
