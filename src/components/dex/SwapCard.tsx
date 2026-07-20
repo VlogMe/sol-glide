@@ -491,32 +491,29 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       )}
 
       <div className="mt-5">
-        {!connected ? (
-          <div>
-            <WalletButton />
-          </div>
-        ) : (
-          <button
-            onClick={handleSwap}
-            disabled={disabled}
-            className="w-full h-12 rounded-2xl bg-[image:var(--grad-primary)] text-primary-foreground font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed glow transition-transform active:scale-[0.99]"
-          >
-            {swapping ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> Swapping…
-              </span>
-            ) : loading ? (
-              "Fetching best route…"
-            ) : !amount ? (
-              "Enter an amount"
-            ) : !quote ? (
-              "No route"
-            ) : (
-              `Swap ${from.symbol} → ${to.symbol}`
-            )}
-          </button>
-        )}
+        <button
+          onClick={oneClickSwap}
+          disabled={primaryDisabled}
+          className="w-full h-12 rounded-2xl bg-[image:var(--grad-primary)] text-primary-foreground font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed glow transition-transform active:scale-[0.99]"
+        >
+          {swapping ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> {connected ? "Swapping…" : "Connecting…"}
+            </span>
+          ) : !connected ? (
+            amount && quote ? `Connect & Swap ${from.symbol} → ${to.symbol}` : "Connect Phantom"
+          ) : loading ? (
+            "Fetching best route…"
+          ) : !amount ? (
+            "Enter an amount"
+          ) : !quote ? (
+            "No route"
+          ) : (
+            `Swap ${from.symbol} → ${to.symbol}`
+          )}
+        </button>
       </div>
+
 
       {lastError && (
         <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2">
