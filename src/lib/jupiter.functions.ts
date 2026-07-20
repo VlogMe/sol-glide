@@ -268,23 +268,6 @@ export const logSwap = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const rpcProxy = createServerFn({ method: "POST" })
-  .inputValidator((d: { body: string }) => d)
-  .handler(async ({ data }) => {
-    const res = await fetch(
-      process.env.RPC_URL ||
-        process.env.VITE_RPC_URL ||
-        process.env.SOLANA_RPC_URL ||
-        "https://api.mainnet-beta.solana.com",
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: data.body },
-    );
-    const text = await res.text();
-    return { status: res.status, body: text };
-  });
-
-export const getRpcUrl = createServerFn({ method: "GET" }).handler(async () => {
-  return { url: "/api/rpc" };
-});
 
 // Resolve any Solana token by mint. Tries Jupiter token metadata first,
 // then falls back to RPC getTokenSupply so bonding-curve / low-liq mints still work.
