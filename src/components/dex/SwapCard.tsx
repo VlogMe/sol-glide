@@ -237,10 +237,15 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
     setAmount(outAmount || "");
   };
 
-  const handleSwap = async () => {
-    const provider = getPhantom();
-    const currentAddress = publicKeyToString(provider?.publicKey) ?? walletAddress;
-    if (!provider?.isConnected || !currentAddress) {
+  const handleSwap = async (providerOverride?: PhantomProvider, addressOverride?: string) => {
+    const provider = providerOverride ?? getPhantom();
+    if (!provider) {
+      window.open("https://phantom.app/", "_blank");
+      return;
+    }
+    const currentAddress =
+      addressOverride ?? publicKeyToString(provider.publicKey) ?? walletAddress ?? null;
+    if (!provider.isConnected || !currentAddress) {
       toast.error("Connect Phantom first");
       return;
     }
