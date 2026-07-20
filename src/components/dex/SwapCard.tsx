@@ -99,6 +99,16 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
       try {
         setLoading(true);
         const raw = BigInt(Math.floor(num * 10 ** from.decimals)).toString();
+        debugLog("quote:request", {
+          amount,
+          rawAmount: raw,
+          inputMint: from.mint,
+          inputSymbol: from.symbol,
+          outputMint: to.mint,
+          outputSymbol: to.symbol,
+          slippageBps,
+          userPublicKey: connected && publicKey ? publicKey.toBase58() : null,
+        });
         const q = await quoteFn({
           data: {
             inputMint: from.mint,
@@ -107,6 +117,12 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
             slippageBps,
             ...(connected && publicKey ? { userPublicKey: publicKey.toBase58() } : {}),
           },
+        });
+        debugLog("quote:response", {
+          outAmount: q?.outAmount,
+          priceImpactPct: q?.priceImpactPct,
+          routePlanCount: Array.isArray(q?.routePlan) ? q.routePlan.length : 0,
+          hasRoutePlan: Array.isArray(q?.routePlan),
         });
         setQuote(q);
       } catch (e: any) {
@@ -129,7 +145,11 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   }, [quote, to.decimals]);
 
   const priceImpact = quote?.priceImpactPct ? Number(quote.priceImpactPct) * 100 : 0;
-  const routeLabels: string[] = quote?.routePlan?.map((r: any) => r.swapInfo?.label).filter(Boolean) ?? [];
+  const routeLabels: string[] = Array.isArray(quote?.routePlan)
+    ? quote.routePlan
+        .map((r: any) => r?.swapInfo?.label)
+        .filter((label: unknown): label is string => typeof label === "string" && label.length > 0)
+    : [];
 
   const feeAmount = amount ? Number(amount) * (feeBps / 10_000) : 0;
 
