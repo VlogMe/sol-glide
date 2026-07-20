@@ -133,11 +133,27 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
     setLastError(null);
     try {
       setSwapping(true);
-      const { swapTransaction } = await swapFn({
-        data: { quoteResponse: quote, userPublicKey: publicKey.toBase58() },
-      });
-      const buf = Uint8Array.from(atob(swapTransaction), (c) => c.charCodeAt(0));
-      const tx = VersionedTransaction.deserialize(buf);
+      let swapTransaction: string | undefined;
+      try {
+        const res = await swapFn({
+          data: { quoteResponse: quote, userPublicKey: publicKey.toBase58() },
+        });
+        swapTransaction = res?.swapTransaction;
+      } catch (err) {
+        console.error("swapFn failed", err);
+        throw new Error("Failed to prepare swap. Please try again.");
+      }
+      if (!swapTransaction || typeof swapTransaction !== "string") {
+        throw new Error("Failed to prepare swap. Please try again.");
+      }
+      let tx: VersionedTransaction;
+      try {
+        const buf = Uint8Array.from(atob(swapTransaction), (c) => c.charCodeAt(0));
+        tx = VersionedTransaction.deserialize(buf);
+      } catch (err) {
+        console.error("deserialize failed", err);
+        throw new Error("Failed to prepare swap. Please try again.");
+      }
       const signed = await signTransaction(tx);
       const sig = await connection.sendRawTransaction(signed.serialize(), {
         skipPreflight: false,
