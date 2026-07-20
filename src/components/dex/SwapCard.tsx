@@ -71,6 +71,20 @@ export function SwapCard({
     };
   }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals]);
 
+  // Fully reset swap UI when the wallet disconnects: clear amount, quote,
+  // route info, loading flag, and any in-flight debounce.
+  useEffect(() => {
+    const onDisconnect = () => {
+      if (debounce.current) clearTimeout(debounce.current);
+      setAmount("");
+      setQuote(null);
+      setLoading(false);
+      setSlippageBps(50);
+    };
+    window.addEventListener(WALLET_DISCONNECT_EVENT, onDisconnect);
+    return () => window.removeEventListener(WALLET_DISCONNECT_EVENT, onDisconnect);
+  }, []);
+
   const outAmount = useMemo(() => {
     if (!quote?.outAmount) return "";
     return (Number(quote.outAmount) / 10 ** to.decimals).toString();
