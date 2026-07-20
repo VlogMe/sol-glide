@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 export type PhantomProvider = {
   isPhantom?: boolean;
@@ -24,7 +24,7 @@ export function getPhantom(): PhantomProvider | null {
   return null;
 }
 
-export function publicKeyToString(value: unknown): string {
+export function publicKeyToString(value: unknown): string | null {
   if (!value) return null;
   if (typeof value === "string") return value;
   if (typeof value === "object") {
@@ -95,7 +95,7 @@ export function WalletButton({
   const pending = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  useState(() => {
+  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpen(false);
