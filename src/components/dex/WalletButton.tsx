@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
-type PhantomProvider = {
+export type PhantomProvider = {
   isPhantom?: boolean;
   isConnected?: boolean;
   publicKey?: { toBase58?: () => string; toString?: () => string } | string | null;
   connect?: (options?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey?: PhantomProvider["publicKey"] } | void>;
   request?: (args: { method: string; params?: unknown }) => Promise<{ publicKey?: PhantomProvider["publicKey"] } | void>;
+  signTransaction?: (transaction: unknown) => Promise<{ serialize: () => Uint8Array }>;
   disconnect?: () => Promise<void>;
   on?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
   off?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
