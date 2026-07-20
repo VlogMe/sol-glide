@@ -100,12 +100,23 @@ const base58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const mint = z.string().regex(base58, "Invalid mint address");
 const amount = z.string().regex(/^[0-9]+$/, "Amount must be a positive integer (raw units)").max(30);
 
+// VIP proof: caller must sign a fixed message with their wallet to prove
+// ownership of the address whose SPDD balance is checked. Without this, any
+// caller could reference a whale wallet to claim the discounted fee.
+const VipProofSchema = z.object({
+  publicKey: mint,
+  // ed25519 signature over the message, base58-encoded (64 bytes)
+  signature: z.string().regex(base58, "Invalid signature"),
+  // Client-supplied nonce/timestamp incorporated into the signed message
+  nonce: z.string().min(8).max(128),
+});
+
 const QuoteSchema = z.object({
   inputMint: mint,
   outputMint: mint,
   amount,
   slippageBps: z.number().int().min(1).max(5000),
-  userPublicKey: mint.optional(),
+  vipProof: VipProofSchema.optional(),
 });
 
 const SwapSchema = z.object({
@@ -117,11 +128,29 @@ const SwapSchema = z.object({
 export type QuoteInput = z.infer<typeof QuoteSchema>;
 export type SwapInput = z.infer<typeof SwapSchema>;
 
+export const VIP_MESSAGE_PREFIX = "SOLPITCH-VIP:";
+
+async function verifyVipProof(proof: z.infer<typeof VipProofSchema>): Promise<string | null> {
+  try {
+    const nacl = (await import("tweetnacl")).default;
+    const bs58 = (await import("bs58")).default;
+    const message = new TextEncoder().encode(`${VIP_MESSAGE_PREFIX}${proof.nonce}`);
+    const sig = bs58.decode(proof.signature);
+    const pub = bs58.decode(proof.publicKey);
+    if (sig.length !== 64 || pub.length !== 32) return null;
+    const ok = nacl.sign.detached.verify(message, sig, pub);
+    return ok ? proof.publicKey : null;
+  } catch {
+    return null;
+  }
+}
+
 export const getJupiterQuote = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => QuoteSchema.parse(d))
   .handler(async ({ data }) => {
     rateLimit("quote");
-    const feeBps = await feeBpsForOwner(data.userPublicKey);
+    const verifiedOwner = data.vipProof ? await verifyVipProof(data.vipProof) : null;
+    const feeBps = await feeBpsForOwner(verifiedOwner ?? undefined);
     const url = new URL(`${JUPITER()}/quote`);
     url.searchParams.set("inputMint", data.inputMint);
     url.searchParams.set("outputMint", data.outputMint);
@@ -239,23 +268,6 @@ export const logSwap = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const rpcProxy = createServerFn({ method: "POST" })
-  .inputValidator((d: { body: string }) => d)
-  .handler(async ({ data }) => {
-    const res = await fetch(
-      process.env.RPC_URL ||
-        process.env.VITE_RPC_URL ||
-        process.env.SOLANA_RPC_URL ||
-        "https://api.mainnet-beta.solana.com",
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: data.body },
-    );
-    const text = await res.text();
-    return { status: res.status, body: text };
-  });
-
-export const getRpcUrl = createServerFn({ method: "GET" }).handler(async () => {
-  return { url: "/api/rpc" };
-});
 
 // Resolve any Solana token by mint. Tries Jupiter token metadata first,
 // then falls back to RPC getTokenSupply so bonding-curve / low-liq mints still work.
