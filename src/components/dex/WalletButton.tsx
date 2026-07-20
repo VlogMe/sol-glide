@@ -26,18 +26,14 @@ function ConnectButtonInner({
 
   const onClick = useCallback(() => {
     try {
-      if (connected) {
-        void disconnect();
-      } else {
-        setVisible(true);
-      }
+      setVisible(true);
     } catch (err) {
       console.error("Wallet action failed", err);
     }
-  }, [connected, disconnect, setVisible]);
+  }, [setVisible]);
 
   const label = connecting
-    ? "Connecting…"
+    ? "Connecting..."
     : connected && publicKey
       ? shortAddr(publicKey.toBase58())
       : (children ?? "Connect Wallet");
@@ -46,7 +42,7 @@ function ConnectButtonInner({
     <button
       type="button"
       onClick={onClick}
-      className="wallet-adapter-button wallet-adapter-button-trigger"
+      className="inline-flex h-11 min-w-[150px] items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       {label}
     </button>
@@ -90,7 +86,7 @@ export function WalletButton({ children }: { children?: ReactNode }) {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="wallet-adapter-button wallet-adapter-button-trigger"
+          className="inline-flex h-11 min-w-[150px] items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           Refresh to retry
         </button>
@@ -102,12 +98,12 @@ export function WalletButton({ children }: { children?: ReactNode }) {
     <button
       type="button"
       onClick={() => {
-        if (failed) window.location.reload();
-        else console.log("Wallet adapter still loading…");
+        if (failed) console.log("Wallet adapter failed to load. Refresh the page to retry.");
+        else console.log("Wallet adapter still loading...");
       }}
-      className="wallet-adapter-button wallet-adapter-button-trigger"
+      className="inline-flex h-11 min-w-[150px] items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      {failed ? "Refresh to retry" : (children ?? "Connect Wallet")}
+      {children ?? "Connect Wallet"}
     </button>
   );
 }
