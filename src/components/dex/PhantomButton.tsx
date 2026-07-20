@@ -38,12 +38,10 @@ export function PhantomButton({
   useEffect(() => {
     const p = getProvider();
     if (!p) return;
-    // Ensure we start disconnected on every page load — never trust an
-    // eager/cached Phantom session. Only a user-approved connect() below
-    // will set the address.
-    try {
-      p.disconnect?.();
-    } catch {}
+    // Do NOT eagerly call p.disconnect() here — it puts Phantom into a
+    // transient state where the next connect() can hang without a popup.
+    // We simply never call connect({ onlyIfTrusted: true }), so no session
+    // is auto-restored on load.
     const onDisconnect = () => {
       setAddress(null);
       broadcastDisconnect();
@@ -76,9 +74,10 @@ export function PhantomButton({
     }
     try {
       setBusy(true);
-      // Force the Phantom approval popup — never trust a cached session.
-      const res = await provider.connect({ onlyIfTrusted: false });
-      const pk = res?.publicKey?.toString?.();
+      // Call connect() with no args — passing options like { onlyIfTrusted: false }
+      // is non-standard and can cause Phantom to hang without showing a popup.
+      const res = await provider.connect();
+      const pk = res?.publicKey?.toString?.() ?? provider.publicKey?.toString?.();
       if (!pk) throw new Error("No public key returned");
       setAddress(pk);
     } catch (e: any) {
