@@ -25,6 +25,7 @@ function ConnectButtonInner({
   const { setVisible } = runtime.useWalletModal();
 
   const onClick = useCallback(() => {
+    console.log("Connect button clicked");
     try {
       setVisible(true);
     } catch (err) {
