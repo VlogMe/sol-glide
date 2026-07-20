@@ -143,7 +143,7 @@ function DexLayout({
                   <SwapCard key={`${pair.from}-${pair.to}`} initialFrom={pair.from} initialTo={pair.to} />
                 </Suspense>
               ) : (
-                <SwapUnavailableCard loading={loadingWallet} error={walletError} onRetry={onRetry} />
+                <SwapUnavailableCard loading={loadingWallet} error={walletError} onRetry={onRetry} pair={pair} setPair={setPair} />
               )}
             </div>
           </div>
