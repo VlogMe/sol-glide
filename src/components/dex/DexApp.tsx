@@ -1,7 +1,10 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
+import { ArrowDownUp, Loader2 } from "lucide-react";
 import { Toaster } from "sonner";
 import { PopularPairs } from "./PopularPairs";
 import { Stats } from "./Stats";
+import { TokenSelect } from "./TokenSelect";
+import { TOKENS, type Token } from "@/lib/tokens";
 import { getRpcUrl } from "@/lib/jupiter.functions";
 
 const WalletProviders = lazy(() => import("./WalletProviders").then((module) => ({ default: module.WalletProviders })));
