@@ -16,14 +16,14 @@ export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "SOLPITCH SWAP — Fastest Solana DEX Aggregator" },
+      { title: "SOLPITCH SWAP — Fast Non-Custodial Solana Swaps" },
       {
         name: "description",
         content:
-          "Non-custodial Solana DEX aggregator. Best-price swaps routed across 20+ liquidity sources via Jupiter. Sub-second execution, 0.5% flat fee.",
+          "Get the best prices by routing across all major Solana DEXes. Instant, secure, and non-custodial swaps with Phantom, Solflare, and Backpack support.",
       },
-      { property: "og:title", content: "SOLPITCH SWAP — Fastest Solana DEX Aggregator" },
-      { property: "og:description", content: "Non-custodial swaps on Solana. Best price, sub-second." },
+      { property: "og:title", content: "SOLPITCH SWAP — Fast Non-Custodial Solana Swaps" },
+      { property: "og:description", content: "Best-price swaps across major Solana DEXes. Non-custodial, instant, secure." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
