@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { PopularPairs } from "./PopularPairs";
-import { Stats } from "./Stats";
 
 const Header = lazy(() => import("./Header").then((module) => ({ default: module.Header })));
 const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: module.SwapCard })));
