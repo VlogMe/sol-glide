@@ -98,7 +98,7 @@ export const TOKENS: Record<string, Token> = {
     name: "Fartcoin",
     mint: "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump",
     decimals: 6,
-    logoURI: "https://ipfs.io/ipfs/QmQr3Fz4h1etNsF7oLGMRHiCzhB5y9a7GjyodnF7zLHK1g",
+    logoURI: "https://coin-images.coingecko.com/coins/images/50891/small/fart.jpg?1729503972",
   },
   GOAT: {
     symbol: "GOAT",
