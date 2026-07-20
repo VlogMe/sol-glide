@@ -54,7 +54,7 @@ export function DexApp() {
   }
 
   return (
-    <WalletRuntimeBoundary fallback={<DexLayout pair={pair} setPair={setPair} walletReady={false} />}>
+    <WalletRuntimeBoundary fallback={() => <DexLayout pair={pair} setPair={setPair} walletReady={false} />}>
       <Suspense fallback={<DexLayout pair={pair} setPair={setPair} walletReady={false} loadingWallet />}>
         <WalletProviders rpcUrl={rpc}>
           <Toaster theme="dark" position="bottom-right" richColors />
