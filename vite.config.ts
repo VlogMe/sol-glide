@@ -25,16 +25,7 @@ export default defineConfig({
       } as any,
     ],
     ssr: {
-      noExternal: [
-        "@solana/web3.js",
-        "@solana/wallet-adapter-base",
-        "@solana/wallet-adapter-react",
-        "@solana/wallet-adapter-react-ui",
-        "@solana/wallet-adapter-phantom",
-        "@solana/wallet-adapter-solflare",
-        "@solana/wallet-adapter-backpack",
-        "rpc-websockets",
-      ],
+      noExternal: ["@solana/web3.js", "rpc-websockets"],
     },
     optimizeDeps: {
       include: ["@solana/web3.js", "rpc-websockets", "buffer"],
