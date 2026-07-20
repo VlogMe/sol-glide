@@ -77,16 +77,6 @@ export function DexApp() {
         <WalletProviders
           key={walletAttempt}
           rpcUrl={rpc}
-          fallback={({ error, retry }) => (
-            <DexLayout
-              pair={pair}
-              setPair={setPair}
-              walletReady={false}
-              loadingWallet={!error}
-              walletError={error}
-              onRetry={retry}
-            />
-          )}
         >
           <Toaster theme="dark" position="bottom-right" richColors />
           <DexLayout pair={pair} setPair={setPair} walletReady />
