@@ -6,6 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { TOKENS, type Token } from "@/lib/tokens";
 import { getJupiterQuote } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
+import { PhantomButton } from "./PhantomButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const NORMAL_FEE_BPS = 50;
@@ -195,6 +196,10 @@ export function SwapCard({
         </div>
       )}
 
+
+      <div className="mt-4">
+        <PhantomButton className="w-full py-3 text-base" />
+      </div>
 
       <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
