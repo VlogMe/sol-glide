@@ -149,7 +149,8 @@ export const getJupiterQuote = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => QuoteSchema.parse(d))
   .handler(async ({ data }) => {
     rateLimit("quote");
-    const feeBps = await feeBpsForOwner(data.userPublicKey);
+    const verifiedOwner = data.vipProof ? await verifyVipProof(data.vipProof) : null;
+    const feeBps = await feeBpsForOwner(verifiedOwner ?? undefined);
     const url = new URL(`${JUPITER()}/quote`);
     url.searchParams.set("inputMint", data.inputMint);
     url.searchParams.set("outputMint", data.outputMint);
