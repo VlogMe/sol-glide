@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownUp, Loader2, Settings2, Info, RefreshCw } from "lucide-react";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -9,6 +8,7 @@ import { getJupiterQuote, getJupiterSwap, logSwap, getSpddTier } from "@/lib/jup
 import { TokenSelect } from "./TokenSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { WalletButton } from "./WalletButton";
+import { useSolpitchWallet } from "./wallet-runtime";
 
 function friendlyError(raw: string): string {
   const s = raw.toLowerCase();
@@ -64,9 +64,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   const [swapping, setSwapping] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { publicKey, signTransaction, connected } = useWallet();
-  const connectionState = useConnection();
-  const connection = connectionState?.connection ?? null;
+  const { publicKey, signTransaction, connected, connection } = useSolpitchWallet();
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
   const logFn = useServerFn(logSwap);

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, type ReactNode } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { useSolpitchWallet } from "./wallet-runtime";
 
 type WalletModalWindow = typeof window & {
   __solpitchOpenWalletModalRequested?: boolean;
@@ -11,18 +10,15 @@ function shortAddr(addr: string) {
 }
 
 export function WalletButton({ children }: { children?: ReactNode }) {
-  const { publicKey, connected, connecting } = useWallet();
-  const { setVisible, visible } = useWalletModal();
+  const { publicKey, connected, connecting, walletModal } = useSolpitchWallet();
 
   const openWalletModal = useCallback(() => {
-    console.log("Connect button clicked");
     try {
-      setVisible(true);
-      console.log("Wallet modal opened", { visible: true });
+      walletModal.show();
     } catch (err) {
       console.error("Wallet action failed", err);
     }
-  }, [setVisible]);
+  }, [walletModal]);
 
   // Handle queued open request from static header button (before providers mounted).
   useEffect(() => {
@@ -49,7 +45,7 @@ export function WalletButton({ children }: { children?: ReactNode }) {
       type="button"
       onClick={openWalletModal}
       aria-haspopup="dialog"
-      aria-expanded={visible ? "true" : "false"}
+      aria-expanded={walletModal.visible ? "true" : "false"}
       className="inline-flex h-11 min-w-[150px] items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       {label}
