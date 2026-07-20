@@ -123,7 +123,8 @@ export function WalletButton({ children }: { children?: ReactNode }) {
       setAddress(nextAddress);
     };
 
-    if (provider?.isConnected) sync();
+    // Do NOT auto-sync from provider.isConnected on mount — only reflect state
+    // after the user explicitly clicks Connect Phantom.
     provider?.on?.("connect", sync);
     provider?.on?.("accountChanged", sync);
     provider?.on?.("disconnect", clear);
