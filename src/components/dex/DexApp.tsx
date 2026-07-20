@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { PopularPairs } from "./PopularPairs";
+import { connectPhantom, disconnectPhantom } from "./WalletButton";
 
 const Header = lazy(() => import("./Header").then((module) => ({ default: module.Header })));
 const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: module.SwapCard })));
@@ -8,9 +9,24 @@ const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: mo
 export function DexApp() {
   const [mounted, setMounted] = useState(false);
   const [pair, setPair] = useState({ from: "SOL", to: "SPDD" });
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  const handleWalletConnect = useCallback(async () => {
+    const address = await connectPhantom();
+    setWalletAddress(address);
+    return address;
+  }, []);
+
+  const handleWalletDisconnect = useCallback(async () => {
+    try {
+      await disconnectPhantom();
+    } finally {
+      setWalletAddress(null);
+    }
   }, []);
 
   if (!mounted) {
@@ -20,7 +36,13 @@ export function DexApp() {
   return (
     <>
       <Toaster theme="dark" position="bottom-right" richColors />
-      <DexLayout pair={pair} setPair={setPair} />
+      <DexLayout
+        pair={pair}
+        setPair={setPair}
+        walletAddress={walletAddress}
+        onWalletConnect={handleWalletConnect}
+        onWalletDisconnect={handleWalletDisconnect}
+      />
     </>
   );
 }
@@ -28,14 +50,24 @@ export function DexApp() {
 function DexLayout({
   pair,
   setPair,
+  walletAddress,
+  onWalletConnect,
+  onWalletDisconnect,
 }: {
   pair: { from: string; to: string };
   setPair: (pair: { from: string; to: string }) => void;
+  walletAddress: string | null;
+  onWalletConnect: () => Promise<string | null>;
+  onWalletDisconnect: () => Promise<void> | void;
 }) {
   return (
     <div className="min-h-screen">
       <Suspense fallback={<HeaderSkeleton />}>
-        <Header />
+        <Header
+          walletAddress={walletAddress}
+          onWalletConnect={onWalletConnect}
+          onWalletDisconnect={onWalletDisconnect}
+        />
       </Suspense>
       <main>
         <section id="swap" className="mx-auto max-w-7xl px-6 pt-14 md:pt-20 pb-10">
@@ -59,7 +91,13 @@ function DexLayout({
             </div>
             <div>
               <Suspense fallback={<SwapCardSkeleton />}>
-                <SwapCard key={`${pair.from}-${pair.to}`} initialFrom={pair.from} initialTo={pair.to} />
+                <SwapCard
+                  key={`${pair.from}-${pair.to}`}
+                  initialFrom={pair.from}
+                  initialTo={pair.to}
+                  walletAddress={walletAddress}
+                  onWalletConnect={onWalletConnect}
+                />
               </Suspense>
             </div>
           </div>

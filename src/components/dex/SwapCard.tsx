@@ -7,7 +7,7 @@ import { TOKENS, type Token } from "@/lib/tokens";
 import { getJupiterQuote, getJupiterSwap, logSwap, getSpddTier } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { WalletButton, getPhantom as sharedGetPhantom, publicKeyToString as sharedPkToString, connectPhantomProvider } from "./WalletButton";
+import { getPhantom as sharedGetPhantom, publicKeyToString as sharedPkToString } from "./WalletButton";
 
 import type { PhantomProvider } from "./WalletButton";
 
@@ -62,33 +62,6 @@ async function sendRpc(method: string, params: unknown[]) {
   return json.result;
 }
 
-function usePhantomAddress() {
-  const [address, setAddress] = useState<string | null>(null);
-
-  useEffect(() => {
-    const provider = getPhantom();
-    const sync = (value?: unknown) => {
-      setAddress((current) => (current ? publicKeyToString(value ?? provider?.publicKey) : current));
-    };
-    const clear = () => setAddress(null);
-    const customSync = (event: Event) => setAddress((event as CustomEvent<{ address?: string | null }>).detail?.address ?? null);
-
-    provider?.on?.("accountChanged", sync);
-    provider?.on?.("disconnect", clear);
-    window.addEventListener("solpitch:phantom-wallet", customSync);
-
-    return () => {
-      provider?.off?.("accountChanged", sync);
-      provider?.off?.("disconnect", clear);
-      provider?.removeListener?.("accountChanged", sync);
-      provider?.removeListener?.("disconnect", clear);
-      window.removeEventListener("solpitch:phantom-wallet", customSync);
-    };
-  }, []);
-
-  return address;
-}
-
 function fmt(n: number, max = 6) {
   if (!isFinite(n)) return "0";
   if (n === 0) return "0";
@@ -96,7 +69,17 @@ function fmt(n: number, max = 6) {
   return n.toLocaleString(undefined, { maximumFractionDigits: max });
 }
 
-export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialFrom?: string; initialTo?: string }) {
+export function SwapCard({
+  initialFrom = "SOL",
+  initialTo = "USDC",
+  walletAddress,
+  onWalletConnect,
+}: {
+  initialFrom?: string;
+  initialTo?: string;
+  walletAddress: string | null;
+  onWalletConnect: () => Promise<string | null>;
+}) {
   const [from, setFrom] = useState<Token>(TOKENS[initialFrom] ?? TOKENS.SOL);
   const [to, setTo] = useState<Token>(TOKENS[initialTo] ?? TOKENS.USDC);
   const [amount, setAmount] = useState("");
@@ -106,7 +89,6 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
   const [swapping, setSwapping] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const walletAddress = usePhantomAddress();
   const connected = !!walletAddress;
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
@@ -207,7 +189,7 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
     }
     const currentAddress =
       addressOverride ?? publicKeyToString(provider.publicKey) ?? walletAddress ?? null;
-    if (!provider.isConnected || !currentAddress) {
+    if (!currentAddress) {
       toast.error("Connect Phantom first");
       return;
     }
@@ -290,26 +272,22 @@ export function SwapCard({ initialFrom = "SOL", initialTo = "USDC" }: { initialF
 
 
   const oneClickSwap = async () => {
-    // Preserve user gesture: call provider.connect() synchronously if needed,
-    // then chain into signing without any awaits between click and connect().
+    // Preserve user gesture: call window.solana.connect() through the shared handler immediately.
     const provider = getPhantom();
     if (!provider) {
       window.open("https://phantom.app/", "_blank");
       return;
     }
     try {
-      if (!provider.isConnected || !publicKeyToString(provider.publicKey)) {
+      if (!walletAddress) {
         setSwapping(true);
         // Fire connect immediately — do NOT await anything before this line.
-        const connectPromise = connectPhantomProvider(provider);
+        const connectPromise = onWalletConnect();
         const address = await connectPromise;
         if (!address) {
           setSwapping(false);
           return;
         }
-        window.dispatchEvent(
-          new CustomEvent("solpitch:phantom-wallet", { detail: { address } })
-        );
         if (!quote) {
           setSwapping(false);
           return;

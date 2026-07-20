@@ -1,7 +1,15 @@
 import logoAsset from "@/assets/solpitch-logo.png.asset.json";
 import { WalletButton } from "./WalletButton";
 
-export function Header() {
+export function Header({
+  walletAddress,
+  onWalletConnect,
+  onWalletDisconnect,
+}: {
+  walletAddress: string | null;
+  onWalletConnect: () => Promise<string | null>;
+  onWalletDisconnect: () => Promise<void> | void;
+}) {
   return (
     <header className="sticky top-0 z-40 border-b border-border/50 backdrop-blur-xl bg-background/60">
       <div className="mx-auto max-w-7xl px-4 md:px-6 h-16 flex items-center justify-between gap-3">
@@ -21,7 +29,11 @@ export function Header() {
           <a href="#stats" className="hover:text-foreground transition-colors">Stats</a>
         </nav>
         <div className="wallet-btn-wrap">
-          <WalletButton />
+          <WalletButton
+            address={walletAddress}
+            onConnect={onWalletConnect}
+            onDisconnect={onWalletDisconnect}
+          />
         </div>
       </div>
     </header>
