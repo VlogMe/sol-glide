@@ -1,7 +1,10 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
+import { ArrowDownUp, Loader2 } from "lucide-react";
 import { Toaster } from "sonner";
 import { PopularPairs } from "./PopularPairs";
 import { Stats } from "./Stats";
+import { TokenSelect } from "./TokenSelect";
+import { TOKENS, type Token } from "@/lib/tokens";
 import { getRpcUrl } from "@/lib/jupiter.functions";
 
 const WalletProviders = lazy(() => import("./WalletProviders").then((module) => ({ default: module.WalletProviders })));
@@ -140,7 +143,7 @@ function DexLayout({
                   <SwapCard key={`${pair.from}-${pair.to}`} initialFrom={pair.from} initialTo={pair.to} />
                 </Suspense>
               ) : (
-                <SwapUnavailableCard loading={loadingWallet} error={walletError} onRetry={onRetry} />
+                <SwapUnavailableCard loading={loadingWallet} error={walletError} onRetry={onRetry} pair={pair} setPair={setPair} />
               )}
             </div>
           </div>
@@ -175,19 +178,69 @@ function SwapUnavailableCard({
   loading,
   error,
   onRetry,
+  pair,
+  setPair,
 }: {
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  pair: { from: string; to: string };
+  setPair: (pair: { from: string; to: string }) => void;
 }) {
+  const from: Token = TOKENS[pair.from] ?? TOKENS.SOL;
+  const to: Token = TOKENS[pair.to] ?? TOKENS.USDC;
+
   return (
-    <div className="glass rounded-3xl p-6 shadow-[var(--shadow-card)] w-full max-w-md mx-auto">
-      <h3 className="font-display text-lg font-semibold">Swap</h3>
-      <p className="mt-3 text-sm text-muted-foreground">
-        {loading
-          ? "Loading secure wallet support…"
-          : error || "Wallet support could not load in this browser session."}
-      </p>
+    <div className="glass rounded-3xl p-5 md:p-6 shadow-[var(--shadow-card)] w-full max-w-md mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-display text-lg font-semibold">Swap</h3>
+        {loading && (
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" /> Loading wallet…
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <div className="rounded-2xl bg-secondary/40 border border-border p-4">
+          <div className="text-xs text-muted-foreground mb-2">You pay</div>
+          <div className="flex items-center gap-3">
+            <input
+              inputMode="decimal"
+              placeholder="0.00"
+              readOnly
+              className="bg-transparent flex-1 text-3xl font-semibold outline-none min-w-0 opacity-70"
+            />
+            <TokenSelect value={from} onChange={(t) => setPair({ from: t.symbol, to: pair.to })} />
+          </div>
+        </div>
+
+        <div className="flex justify-center -my-3 relative z-10">
+          <button
+            onClick={() => setPair({ from: pair.to, to: pair.from })}
+            className="h-10 w-10 grid place-items-center rounded-xl bg-card border border-border hover:border-primary/60 transition-colors"
+          >
+            <ArrowDownUp className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="rounded-2xl bg-secondary/40 border border-border p-4">
+          <div className="text-xs text-muted-foreground mb-2">You receive</div>
+          <div className="flex items-center gap-3">
+            <input
+              placeholder="0.00"
+              readOnly
+              className="bg-transparent flex-1 text-3xl font-semibold outline-none min-w-0 opacity-70"
+            />
+            <TokenSelect value={to} onChange={(t) => setPair({ from: pair.from, to: t.symbol })} />
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <p className="mt-4 text-xs text-destructive">{error}</p>
+      )}
+
       <div className="mt-5 grid gap-2 sm:grid-cols-2">
         <button
           type="button"
@@ -195,16 +248,19 @@ function SwapUnavailableCard({
           disabled={loading || !onRetry}
           className="h-11 rounded-2xl border border-border bg-secondary/60 font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Try again
+          {loading ? "Loading…" : "Try again"}
         </button>
         <button
           type="button"
           onClick={() => window.location.reload()}
           className="h-11 rounded-2xl bg-[image:var(--grad-primary)] text-primary-foreground font-semibold"
         >
-          Refresh to retry
+          Refresh
         </button>
       </div>
+      <p className="mt-3 text-[11px] text-muted-foreground text-center">
+        Connect a wallet to fetch live routes and execute swaps.
+      </p>
     </div>
   );
 }
