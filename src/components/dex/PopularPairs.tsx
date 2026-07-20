@@ -17,7 +17,7 @@ export function PopularPairs({ onSelect }: { onSelect: (from: string, to: string
           return (
             <button
               key={`${from}-${to}`}
-              onClick={() => onSelect(from, to)}
+              onClick={() => onSelect("SOL", from === "SOL" ? to : from)}
               className={`group glass rounded-2xl p-4 text-left hover:border-primary/50 transition-all hover:-translate-y-0.5 ${vip ? "border-success/40" : ""}`}
             >
               <div className="flex items-center gap-2">
