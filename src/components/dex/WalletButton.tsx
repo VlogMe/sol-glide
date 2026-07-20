@@ -67,34 +67,13 @@ export function emitWalletChange(nextAddress: string | null) {
 }
 
 /**
- * Connect to Phantom. Tries the newer wallet-standard `request({method:"connect"})`
- * first (which handles the unlock flow cleanly), then falls back to `connect()`.
+ * Connect to Phantom from an explicit user click only.
  * MUST be called synchronously from a user gesture (no awaits before it).
  */
 export async function connectPhantomProvider(provider: PhantomProvider): Promise<string | null> {
-  // Force a fresh auth prompt: if Phantom previously trusted this site it will
-  // silently reconnect without opening the extension. Disconnecting first
-  // ensures the user always sees the Phantom popup (unlock + approve).
-  if (provider.isConnected && typeof provider.disconnect === "function") {
-    try {
-      await provider.disconnect();
-    } catch {
-      // ignore — we'll still attempt to connect below
-    }
-  }
-
   let response: any;
   if (typeof provider.connect === "function") {
-    try {
-      response = await provider.connect();
-    } catch (err) {
-      const code = (err as { code?: number })?.code;
-      if (code === -32603 && typeof provider.request === "function") {
-        response = await provider.request({ method: "connect" });
-      } else {
-        throw err;
-      }
-    }
+    response = await provider.connect({ onlyIfTrusted: false });
   } else if (typeof provider.request === "function") {
     response = await provider.request({ method: "connect" });
   } else {
@@ -119,9 +98,12 @@ export function WalletButton({ children }: { children?: ReactNode }) {
   useEffect(() => {
     const provider = getPhantom();
     const sync = (value?: unknown) => {
-      const nextAddress = publicKeyToString(value ?? provider?.publicKey);
-      setAddress(nextAddress);
-      emitWalletChange(nextAddress);
+      setAddress((current) => {
+        if (!current) return current;
+        const nextAddress = publicKeyToString(value ?? provider?.publicKey);
+        emitWalletChange(nextAddress);
+        return nextAddress;
+      });
     };
     const clear = () => {
       setAddress(null);
@@ -135,16 +117,13 @@ export function WalletButton({ children }: { children?: ReactNode }) {
 
     // Do NOT auto-sync from provider.isConnected on mount — only reflect state
     // after the user explicitly clicks Connect Phantom.
-    provider?.on?.("connect", sync);
     provider?.on?.("accountChanged", sync);
     provider?.on?.("disconnect", clear);
     window.addEventListener("solpitch:phantom-wallet", customSync);
 
     return () => {
-      provider?.off?.("connect", sync);
       provider?.off?.("accountChanged", sync);
       provider?.off?.("disconnect", clear);
-      provider?.removeListener?.("connect", sync);
       provider?.removeListener?.("accountChanged", sync);
       provider?.removeListener?.("disconnect", clear);
       window.removeEventListener("solpitch:phantom-wallet", customSync);
