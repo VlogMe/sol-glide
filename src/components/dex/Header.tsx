@@ -1,5 +1,4 @@
 import logoAsset from "@/assets/solpitch-logo.png.asset.json";
-import { PhantomButton } from "./PhantomButton";
 
 export function Header() {
   return (
@@ -15,8 +14,8 @@ export function Header() {
             <span className="gradient-text">SOLPITCH</span> SWAP
           </span>
         </a>
-        <PhantomButton size="sm" />
       </div>
     </header>
   );
 }
+
