@@ -14,6 +14,13 @@ function getProvider(): any | null {
   return p?.isPhantom ? p : null;
 }
 
+export const WALLET_DISCONNECT_EVENT = "solpitch:wallet-disconnect";
+
+function broadcastDisconnect() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(WALLET_DISCONNECT_EVENT));
+}
+
 function short(addr: string) {
   return `${addr.slice(0, 4)}…${addr.slice(-4)}`;
 }
