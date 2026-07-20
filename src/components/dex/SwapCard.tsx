@@ -63,29 +63,23 @@ async function sendRpc(method: string, params: unknown[]) {
 }
 
 function usePhantomAddress() {
-  const [address, setAddress] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    const provider = getPhantom();
-    return provider?.isConnected ? publicKeyToString(provider.publicKey) : null;
-  });
+  const [address, setAddress] = useState<string | null>(null);
 
   useEffect(() => {
     const provider = getPhantom();
-    const sync = (value?: unknown) => setAddress(publicKeyToString(value ?? provider?.publicKey));
+    const sync = (value?: unknown) => {
+      setAddress((current) => (current ? publicKeyToString(value ?? provider?.publicKey) : current));
+    };
     const clear = () => setAddress(null);
     const customSync = (event: Event) => setAddress((event as CustomEvent<{ address?: string | null }>).detail?.address ?? null);
 
-    if (provider?.isConnected) sync();
-    provider?.on?.("connect", sync);
     provider?.on?.("accountChanged", sync);
     provider?.on?.("disconnect", clear);
     window.addEventListener("solpitch:phantom-wallet", customSync);
 
     return () => {
-      provider?.off?.("connect", sync);
       provider?.off?.("accountChanged", sync);
       provider?.off?.("disconnect", clear);
-      provider?.removeListener?.("connect", sync);
       provider?.removeListener?.("accountChanged", sync);
       provider?.removeListener?.("disconnect", clear);
       window.removeEventListener("solpitch:phantom-wallet", customSync);
