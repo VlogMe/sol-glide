@@ -1,21 +1,16 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 
 export type PhantomProvider = {
   isPhantom?: boolean;
   isConnected?: boolean;
   publicKey?: { toBase58?: () => string; toString?: () => string } | string | null;
   connect?: (options?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey?: PhantomProvider["publicKey"] } | void>;
-  request?: (args: { method: string; params?: unknown }) => Promise<{ publicKey?: PhantomProvider["publicKey"] } | void>;
   signTransaction?: (transaction: unknown) => Promise<{ serialize: () => Uint8Array }>;
   disconnect?: () => Promise<void>;
-  on?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
-  off?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
-  removeListener?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
 };
 
 type PhantomWindow = typeof window & {
   solana?: PhantomProvider;
-  phantom?: { solana?: PhantomProvider };
 };
 
 function shortAddr(addr: string) {
@@ -25,12 +20,11 @@ function shortAddr(addr: string) {
 export function getPhantom(): PhantomProvider | null {
   if (typeof window === "undefined") return null;
   const w = window as PhantomWindow;
-  if (w.phantom?.solana?.isPhantom) return w.phantom.solana;
   if (w.solana?.isPhantom) return w.solana;
   return null;
 }
 
-export function publicKeyToString(value: unknown): string | null {
+export function publicKeyToString(value: unknown): string {
   if (!value) return null;
   if (typeof value === "string") return value;
   if (typeof value === "object") {
@@ -61,76 +55,47 @@ function openPhantomInstallOrMobile() {
   window.open(target, "_blank", "noopener,noreferrer");
 }
 
-export function emitWalletChange(nextAddress: string | null) {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent("solpitch:phantom-wallet", { detail: { address: nextAddress } }));
-}
-
 /**
  * Connect to Phantom from an explicit user click only.
- * MUST be called synchronously from a user gesture (no awaits before it).
+ * This calls window.solana.connect() immediately so Phantom can open its popup.
  */
-export async function connectPhantomProvider(provider: PhantomProvider): Promise<string | null> {
-  let response: any;
-  if (typeof provider.connect === "function") {
-    response = await provider.connect({ onlyIfTrusted: false });
-  } else if (typeof provider.request === "function") {
-    response = await provider.request({ method: "connect" });
-  } else {
-    throw new Error("Phantom is installed but no connect method is available.");
-  }
-  return publicKeyToString(response?.publicKey ?? provider.publicKey);
-}
-
-export function getConnectedPhantomAddress() {
+export async function connectPhantom(): Promise<string> {
   const provider = getPhantom();
-  if (!provider?.isConnected) return null;
-  return publicKeyToString(provider.publicKey);
+  if (!provider) {
+    openPhantomInstallOrMobile();
+    throw new Error("Phantom wallet is not installed.");
+  }
+  if (typeof provider.connect !== "function") {
+    throw new Error("Phantom is installed but cannot connect. Please update Phantom.");
+  }
+  const response = await provider.connect({ onlyIfTrusted: false });
+  const address = publicKeyToString(response?.publicKey ?? provider.publicKey);
+  if (!address) throw new Error("Phantom did not return a wallet address.");
+  return address;
 }
 
-export function WalletButton({ children }: { children?: ReactNode }) {
-  const [address, setAddress] = useState<string | null>(null);
+export async function disconnectPhantom() {
+  const provider = getPhantom();
+  if (provider?.disconnect) await provider.disconnect();
+}
+
+export function WalletButton({
+  address,
+  onConnect,
+  onDisconnect,
+  children,
+}: {
+  address: string | null;
+  onConnect: () => Promise<string | null>;
+  onDisconnect: () => Promise<void> | void;
+  children?: ReactNode;
+}) {
   const [connecting, setConnecting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const pending = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const provider = getPhantom();
-    const sync = (value?: unknown) => {
-      setAddress((current) => {
-        if (!current) return current;
-        const nextAddress = publicKeyToString(value ?? provider?.publicKey);
-        emitWalletChange(nextAddress);
-        return nextAddress;
-      });
-    };
-    const clear = () => {
-      setAddress(null);
-      setMenuOpen(false);
-      emitWalletChange(null);
-    };
-    const customSync = (event: Event) => {
-      const nextAddress = (event as CustomEvent<{ address?: string | null }>).detail?.address ?? null;
-      setAddress(nextAddress);
-    };
-
-    // Do NOT auto-sync from provider.isConnected on mount — only reflect state
-    // after the user explicitly clicks Connect Phantom.
-    provider?.on?.("accountChanged", sync);
-    provider?.on?.("disconnect", clear);
-    window.addEventListener("solpitch:phantom-wallet", customSync);
-
-    return () => {
-      provider?.off?.("accountChanged", sync);
-      provider?.off?.("disconnect", clear);
-      provider?.removeListener?.("accountChanged", sync);
-      provider?.removeListener?.("disconnect", clear);
-      window.removeEventListener("solpitch:phantom-wallet", customSync);
-    };
-  }, []);
-
-  useEffect(() => {
+  useState(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpen(false);
@@ -143,18 +108,14 @@ export function WalletButton({ children }: { children?: ReactNode }) {
   }, [menuOpen]);
 
   const handleDisconnect = useCallback(async () => {
-    const provider = getPhantom();
-    if (provider?.disconnect) {
-      try {
-        await provider.disconnect();
-      } catch (err) {
-        console.error("Phantom disconnect failed", err);
-      }
+    try {
+      await onDisconnect();
+    } catch (err) {
+      console.error("Phantom disconnect failed", err);
+    } finally {
+      setMenuOpen(false);
     }
-    setAddress(null);
-    setMenuOpen(false);
-    emitWalletChange(null);
-  }, []);
+  }, [onDisconnect]);
 
   const onClick = useCallback(() => {
     if (address) {
@@ -162,21 +123,12 @@ export function WalletButton({ children }: { children?: ReactNode }) {
       return;
     }
     if (pending.current) return;
-    const provider = getPhantom();
-    if (!provider) {
-      openPhantomInstallOrMobile();
-      return;
-    }
+
     pending.current = true;
+    // Kick off connect synchronously from this click through the shared handler.
+    const connectPromise = onConnect();
     setConnecting(true);
-    // Kick off connect synchronously from the click. Do NOT await before this line.
-    connectPhantomProvider(provider)
-      .then((nextAddress) => {
-        if (nextAddress) {
-          setAddress(nextAddress);
-          emitWalletChange(nextAddress);
-        }
-      })
+    connectPromise
       .catch((err) => {
         const code = (err as { code?: number })?.code;
         if (code === 4001) return; // user rejected
@@ -186,7 +138,7 @@ export function WalletButton({ children }: { children?: ReactNode }) {
         pending.current = false;
         setConnecting(false);
       });
-  }, [address]);
+  }, [address, onConnect]);
 
   const label = connecting
     ? "Connecting..."
