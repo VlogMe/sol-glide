@@ -35,9 +35,12 @@ export function SwapCard({
   const [slippageBps, setSlippageBps] = useState(50);
   const [quote, setQuote] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [swapping, setSwapping] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const quoteFn = useServerFn(getJupiterQuote);
+  const swapFn = useServerFn(getJupiterSwap);
 
   const feeBps = NORMAL_FEE_BPS;
 
