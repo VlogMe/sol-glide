@@ -9,20 +9,7 @@ import { TokenSelect } from "./TokenSelect";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { WalletButton, getPhantom as sharedGetPhantom, publicKeyToString as sharedPkToString, connectPhantomProvider } from "./WalletButton";
 
-type PhantomProvider = {
-  isPhantom?: boolean;
-  isConnected?: boolean;
-  publicKey?: { toBase58?: () => string; toString?: () => string } | string | null;
-  signTransaction?: (transaction: unknown) => Promise<{ serialize: () => Uint8Array }>;
-  on?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
-  off?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
-  removeListener?: (event: "connect" | "disconnect" | "accountChanged", handler: (value?: unknown) => void) => void;
-};
-
-type PhantomWindow = typeof window & {
-  solana?: PhantomProvider;
-  phantom?: { solana?: PhantomProvider };
-};
+import type { PhantomProvider } from "./WalletButton";
 
 function friendlyError(raw: string): string {
   const s = raw.toLowerCase();
