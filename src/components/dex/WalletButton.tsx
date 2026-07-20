@@ -61,6 +61,11 @@ function openPhantomInstallOrMobile() {
   window.open(target, "_blank", "noopener,noreferrer");
 }
 
+export function emitWalletChange(nextAddress: string | null) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("solpitch:phantom-wallet", { detail: { address: nextAddress } }));
+}
+
 /**
  * Connect to Phantom. Tries the newer wallet-standard `request({method:"connect"})`
  * first (which handles the unlock flow cleanly), then falls back to `connect()`.
@@ -97,18 +102,21 @@ export function getConnectedPhantomAddress() {
 export function WalletButton({ children }: { children?: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const pending = useRef(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const provider = getPhantom();
     const sync = (value?: unknown) => {
       const nextAddress = publicKeyToString(value ?? provider?.publicKey);
       setAddress(nextAddress);
-      window.dispatchEvent(new CustomEvent("solpitch:phantom-wallet", { detail: { address: nextAddress } }));
+      emitWalletChange(nextAddress);
     };
     const clear = () => {
       setAddress(null);
-      window.dispatchEvent(new CustomEvent("solpitch:phantom-wallet", { detail: { address: null } }));
+      setMenuOpen(false);
+      emitWalletChange(null);
     };
     const customSync = (event: Event) => {
       const nextAddress = (event as CustomEvent<{ address?: string | null }>).detail?.address ?? null;
@@ -132,7 +140,37 @@ export function WalletButton({ children }: { children?: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    if (menuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [menuOpen]);
+
+  const handleDisconnect = useCallback(async () => {
+    const provider = getPhantom();
+    if (provider?.disconnect) {
+      try {
+        await provider.disconnect();
+      } catch (err) {
+        console.error("Phantom disconnect failed", err);
+      }
+    }
+    setAddress(null);
+    setMenuOpen(false);
+    emitWalletChange(null);
+  }, []);
+
   const onClick = useCallback(() => {
+    if (address) {
+      setMenuOpen((open) => !open);
+      return;
+    }
     if (pending.current) return;
     const provider = getPhantom();
     if (!provider) {
@@ -146,9 +184,7 @@ export function WalletButton({ children }: { children?: ReactNode }) {
       .then((nextAddress) => {
         if (nextAddress) {
           setAddress(nextAddress);
-          window.dispatchEvent(
-            new CustomEvent("solpitch:phantom-wallet", { detail: { address: nextAddress } })
-          );
+          emitWalletChange(nextAddress);
         }
       })
       .catch((err) => {
@@ -160,7 +196,7 @@ export function WalletButton({ children }: { children?: ReactNode }) {
         pending.current = false;
         setConnecting(false);
       });
-  }, []);
+  }, [address]);
 
   const label = connecting
     ? "Connecting..."
@@ -169,13 +205,36 @@ export function WalletButton({ children }: { children?: ReactNode }) {
       : (children ?? "Connect Phantom");
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={address ? `Connected Phantom wallet ${address}` : "Connect Phantom wallet"}
-      className="inline-flex h-11 min-w-[170px] items-center justify-center rounded-xl bg-gradient-to-r from-[#A855F7] to-[#7C3AED] px-5 text-sm font-bold text-white shadow-lg shadow-purple-500/30 transition hover:from-[#9333EA] hover:to-[#6D28D9] hover:shadow-purple-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-    >
-      <span aria-live="polite">{label}</span>
-    </button>
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={address ? `Connected Phantom wallet ${address}` : "Connect Phantom wallet"}
+        aria-haspopup={address ? "menu" : undefined}
+        aria-expanded={address ? menuOpen : undefined}
+        className="inline-flex h-11 min-w-[170px] items-center justify-center rounded-xl bg-gradient-to-r from-[#A855F7] to-[#7C3AED] px-5 text-sm font-bold text-white shadow-lg shadow-purple-500/30 transition hover:from-[#9333EA] hover:to-[#6D28D9] hover:shadow-purple-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
+        <span aria-live="polite">{label}</span>
+      </button>
+
+      {address && menuOpen && (
+        <div
+          role="menu"
+          className="absolute right-0 mt-2 w-56 rounded-xl border border-border/60 bg-card/95 backdrop-blur-xl p-2 shadow-2xl shadow-black/40 z-50"
+        >
+          <div className="px-3 py-2 text-xs text-muted-foreground truncate border-b border-border/40 mb-1">
+            {address}
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleDisconnect}
+            className="w-full text-left px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+          >
+            Disconnect
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
