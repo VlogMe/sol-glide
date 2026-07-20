@@ -23,7 +23,7 @@ const JUP_UNREACHABLE = "Unable to get quote. Please try again.";
 const PLATFORM_FEE_BPS = 50; // 0.5%
 const VIP_FEE_BPS = 30; // 0.3% for SPDD holders
 const SPDD_MINT = "C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump";
-const SPDD_VIP_THRESHOLD = 100_000; // whole tokens
+const SPDD_VIP_THRESHOLD = 1_000_000; // whole tokens
 const PLATFORM_FEE_WALLET = () => process.env.PLATFORM_FEE_WALLET || "";
 
 const RPC = () =>
