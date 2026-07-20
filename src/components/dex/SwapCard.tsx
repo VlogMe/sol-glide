@@ -134,11 +134,10 @@ export function SwapCard({
           wrapAndUnwrapSol: true,
         },
       });
-      const [{ Connection, VersionedTransaction }, { Buffer }] = await Promise.all([
-        import("@solana/web3.js"),
-        import("buffer"),
-      ]);
-      const txBuf = Buffer.from(swapTransaction, "base64");
+      const { Connection, VersionedTransaction } = await import("@solana/web3.js");
+      const binary = atob(swapTransaction);
+      const txBuf = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) txBuf[i] = binary.charCodeAt(i);
       const tx = VersionedTransaction.deserialize(txBuf);
       const rpcUrl =
         (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
