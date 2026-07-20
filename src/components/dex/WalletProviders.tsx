@@ -1,6 +1,8 @@
 import "@/lib/buffer-polyfill";
 import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 
+import { SolpitchWalletRuntimeProvider } from "./wallet-runtime";
+
 import "./wallet-adapter.css";
 
 type WalletRuntime = {
@@ -12,6 +14,7 @@ type WalletRuntime = {
     children: ReactNode;
   }>;
   WalletModalProvider: ComponentType<{ children: ReactNode }>;
+  RuntimeBridge: ComponentType<{ children: ReactNode }>;
   wallets: unknown[];
 };
 
@@ -79,10 +82,41 @@ export function WalletProviders({
           safeAdapter(backpack.BackpackWalletAdapter, "Backpack"),
         ].filter(Boolean) as unknown[];
 
+        const RuntimeBridge: WalletRuntime["RuntimeBridge"] = ({ children }) => {
+          const wallet = reactAdapter.useWallet();
+          const connectionState = reactAdapter.useConnection();
+          const modal = reactUi.useWalletModal();
+
+          const show = () => {
+            console.log("Connect button clicked");
+            modal.setVisible(true);
+            console.log("Wallet modal opened", { visible: true });
+          };
+
+          return (
+            <SolpitchWalletRuntimeProvider
+              value={{
+                publicKey: wallet.publicKey,
+                connected: wallet.connected,
+                connecting: wallet.connecting,
+                signTransaction: wallet.signTransaction,
+                connection: connectionState?.connection ?? null,
+                walletModal: {
+                  visible: modal.visible,
+                  show,
+                },
+              }}
+            >
+              {children}
+            </SolpitchWalletRuntimeProvider>
+          );
+        };
+
         setRuntime({
           ConnectionProvider: reactAdapter.ConnectionProvider as WalletRuntime["ConnectionProvider"],
           WalletProvider: reactAdapter.WalletProvider as WalletRuntime["WalletProvider"],
           WalletModalProvider: reactUi.WalletModalProvider as WalletRuntime["WalletModalProvider"],
+          RuntimeBridge,
           wallets,
         });
       } catch (err) {
@@ -104,7 +138,7 @@ export function WalletProviders({
     return fallback ? <>{fallback({ error, retry })}</> : null;
   }
 
-  const { ConnectionProvider, WalletProvider, WalletModalProvider, wallets } = runtime;
+  const { ConnectionProvider, WalletProvider, WalletModalProvider, RuntimeBridge, wallets } = runtime;
 
   return (
     <ConnectionProvider endpoint={endpoint} config={{ commitment: "confirmed" }}>
@@ -116,7 +150,9 @@ export function WalletProviders({
           onError?.(err);
         }}
       >
-        <WalletModalProvider>{children}</WalletModalProvider>
+        <WalletModalProvider>
+          <RuntimeBridge>{children}</RuntimeBridge>
+        </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
   );
