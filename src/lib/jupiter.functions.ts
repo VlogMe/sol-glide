@@ -170,15 +170,36 @@ export const getJupiterSwap = createServerFn({ method: "POST" })
         headers: { "Content-Type": "application/json", accept: "application/json" },
         body: JSON.stringify(body),
       });
-    } catch {
+    } catch (e: any) {
+      console.error("jupiter swap fetch failed", e?.message || e);
       throw new Error(JUP_UNREACHABLE);
     }
+    const raw = await res.text();
     if (!res.ok) {
-      const t = await res.text().catch(() => "");
+      console.error("jupiter swap non-ok", res.status, raw.slice(0, 500));
       if (res.status >= 500) throw new Error(JUP_UNREACHABLE);
-      throw new Error(`Jupiter swap failed: ${res.status} ${t.slice(0, 200)}`);
+      // Surface Jupiter's error message (e.g. simulation failure, insufficient funds)
+      let detail = raw.slice(0, 300);
+      try {
+        const j = JSON.parse(raw);
+        detail = j.error || j.message || j.errorCode || detail;
+      } catch {}
+      throw new Error(`Jupiter swap failed (${res.status}): ${detail}`);
     }
-    return (await res.json()) as { swapTransaction: string; lastValidBlockHeight: number };
+    let json: any;
+    try {
+      json = JSON.parse(raw);
+    } catch {
+      console.error("jupiter swap invalid JSON", raw.slice(0, 500));
+      throw new Error("Jupiter returned invalid response. Please try again.");
+    }
+    if (!json?.swapTransaction || typeof json.swapTransaction !== "string") {
+      console.error("jupiter swap missing swapTransaction", json);
+      throw new Error(
+        `Jupiter did not return a swap transaction${json?.error ? `: ${json.error}` : ""}. Please try again.`,
+      );
+    }
+    return json as { swapTransaction: string; lastValidBlockHeight: number };
   });
 
 export const getSpddTier = createServerFn({ method: "POST" })
