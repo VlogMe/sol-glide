@@ -49,8 +49,8 @@ function DexLayout({
                 non-custodial swaps.
               </p>
               <div className="mt-6 flex flex-wrap gap-6 text-sm">
-                <Bullet>Best-price routing via Jupiter</Bullet>
                 <Bullet>0.5% flat platform fee</Bullet>
+                <Bullet>0.3% platform fee when holding 1M $SPDD tokens</Bullet>
               </div>
             </div>
             <div>
