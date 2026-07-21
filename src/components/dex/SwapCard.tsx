@@ -79,7 +79,9 @@ export function SwapCard({
   const [toSource, setToSource] = useState<VerifySource>(null);
   const fromDecimalsOk = validDecimals(from);
   const toDecimalsOk = validDecimals(to);
-  const decimalsOk = fromDecimalsOk && toDecimalsOk && !decimalsError;
+  // Soft check: only block if the token object itself has invalid decimals.
+  // Verification errors from RPC/Jupiter are shown as warnings but do not block.
+  const decimalsOk = fromDecimalsOk && toDecimalsOk;
 
   // Re-verify decimals on-chain whenever a token changes, so stale/missing
   // decimals never slip through into a quote / swap call.
