@@ -185,6 +185,7 @@ export function SwapCard({
           versionedTransaction: typeof web3.VersionedTransaction,
           connection: typeof web3.Connection,
         });
+        const { VersionedTransaction, Connection } = web3;
       } catch (error) {
         console.error("WEB3 IMPORT FAILED", error);
         throw error;
