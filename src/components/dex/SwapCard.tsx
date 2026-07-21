@@ -176,8 +176,7 @@ export function SwapCard({
         throw new Error("Jupiter did not return a valid swap transaction");
       }
 
-      console.log("STEP 3 - before web3 import");
-      const { VersionedTransaction, Connection } = await import("@solana/web3.js");
+      console.log("STEP 3 - web3 imported statically");
       console.log("Before decode", {
         Buffer: typeof Buffer,
         BufferFrom: typeof Buffer?.from,
