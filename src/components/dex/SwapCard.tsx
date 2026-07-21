@@ -33,8 +33,12 @@ export function SwapCard({
   initialFrom?: string;
   initialTo?: string;
 }) {
-  const [from, setFrom] = useState<Token>(TOKENS[initialFrom] ?? TOKENS.SOL);
-  const [to, setTo] = useState<Token>(TOKENS[initialTo] ?? TOKENS.USDC);
+  const [from, setFrom] = useState<Token>(
+    TOKENS[initialFrom] ?? TOKENS.SOL ?? Object.values(TOKENS)[0],
+  );
+  const [to, setTo] = useState<Token>(
+    TOKENS[initialTo] ?? TOKENS.USDC ?? Object.values(TOKENS)[1] ?? Object.values(TOKENS)[0],
+  );
   const [amount, setAmount] = useState("");
   const [slippageBps, setSlippageBps] = useState(50);
   const [quote, setQuote] = useState<any>(null);
