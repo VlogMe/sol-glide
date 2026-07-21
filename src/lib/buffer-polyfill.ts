@@ -1,14 +1,14 @@
-export async function setupBuffer() {
+import { Buffer as PolyfillBuffer } from "buffer/";
+
+export function setupBuffer() {
   if (typeof window === "undefined") return;
 
   try {
-    const { Buffer } = await import("buffer");
-
     if (typeof globalThis !== "undefined") {
-      (globalThis as any).Buffer = Buffer;
+      (globalThis as any).Buffer = PolyfillBuffer;
     }
 
-    (window as any).Buffer = Buffer;
+    (window as any).Buffer = PolyfillBuffer;
 
     console.log("BUFFER SETUP CHECK", {
       Buffer: typeof (globalThis as any).Buffer,
@@ -19,7 +19,9 @@ export async function setupBuffer() {
   }
 }
 
-export async function ensureBuffer() {
+export function ensureBuffer() {
   if (typeof window === "undefined") return;
-  await setupBuffer();
+  setupBuffer();
 }
+
+setupBuffer();

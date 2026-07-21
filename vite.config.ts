@@ -19,11 +19,11 @@ export default defineConfig({
       {
         name: "client-buffer-alias",
         enforce: "pre",
-        applyToEnvironment: (env: { name: string }) => env.name === "client",
         resolveId(source: string) {
-          if (source === "buffer") {
+          if (source === "buffer" || source === "node:buffer") {
             return bufferShim;
           }
+          if (source === "buffer/") return bufferPackage;
           return null;
         },
       } as any,
@@ -53,6 +53,7 @@ export default defineConfig({
     resolve: {
       alias: [
         { find: /^buffer$/, replacement: bufferShim },
+        { find: /^node:buffer$/, replacement: bufferShim },
         { find: /^buffer\/$/, replacement: bufferPackage },
         { find: /^process$/, replacement: "process/browser" },
         { find: /^rpc-websockets$/, replacement: rpcWebsocketsBrowser },

@@ -14,4 +14,9 @@ export const Buffer = (BufferModule as any).Buffer ?? BufferModule;
 export const SlowBuffer = (BufferModule as any).SlowBuffer;
 export const INSPECT_MAX_BYTES = (BufferModule as any).INSPECT_MAX_BYTES;
 export const kMaxLength = (BufferModule as any).kMaxLength;
+
+if (typeof globalThis !== "undefined" && typeof Buffer?.from === "function") {
+  (globalThis as any).Buffer = Buffer;
+}
+
 export default BufferModule;
