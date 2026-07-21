@@ -191,6 +191,14 @@ export function SwapCard({
 
   const lowLiquidity = to.symbol === "SPDD" || priceImpact > 3;
 
+  if (!from || !to) {
+    return (
+      <div className="w-full max-w-md mx-auto p-6 text-center text-sm text-muted-foreground">
+        Loading token configuration…
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-md mx-auto">
       <div className="glass rounded-3xl overflow-hidden shadow-[var(--shadow-card)] p-5 md:p-6">
