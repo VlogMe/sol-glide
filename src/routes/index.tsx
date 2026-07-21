@@ -22,7 +22,7 @@ export const Route = createFileRoute("/")({
           "Get the best prices by routing across all major Solana DEXes. Instant, secure swaps with Phantom support.",
       },
       { property: "og:title", content: "SOLPITCH SWAP — Fast Solana Swaps" },
-      { property: "og:description", content: "Get the best prices by routing across all major Solana DEXes. Instant, secure, and non-custodial swaps with Phantom support." },
+      { property: "og:description", content: "Get the best prices by routing across all major Solana DEXes. Instant, secure swaps with Phantom support." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
