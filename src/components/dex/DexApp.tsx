@@ -41,10 +41,6 @@ function DexLayout({
         <section id="swap" className="mx-auto max-w-7xl px-6 pt-14 md:pt-20 pb-10">
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 text-xs font-medium text-primary bg-primary/10 border border-primary/30 rounded-full px-3 py-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                Live on Solana mainnet
-              </div>
               <h1 className="mt-5 text-5xl md:text-6xl font-bold leading-[1.05] tracking-tight">
                 Fast Non-Custodial <span className="gradient-text">Solana Swaps</span>
               </h1>

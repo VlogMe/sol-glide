@@ -74,9 +74,6 @@ export function SwapCard({
     Number.isInteger(t.decimals) && t.decimals >= 0 && t.decimals <= 18;
   const [verifyingDecimals, setVerifyingDecimals] = useState(false);
   const [decimalsError, setDecimalsError] = useState<string | null>(null);
-  type VerifySource = "jupiter" | "rpc" | null;
-  const [fromSource, setFromSource] = useState<VerifySource>(null);
-  const [toSource, setToSource] = useState<VerifySource>(null);
   const fromDecimalsOk = validDecimals(from);
   const toDecimalsOk = validDecimals(to);
   // Soft check: only block if the token object itself has invalid decimals.
@@ -88,8 +85,6 @@ export function SwapCard({
   useEffect(() => {
     let cancelled = false;
     setDecimalsError(null);
-    setFromSource(null);
-    setToSource(null);
     const check = async (t: Token, side: "from" | "to") => {
       try {
         const fresh: any = await resolveFn({ data: { mint: t.mint } });
@@ -100,9 +95,6 @@ export function SwapCard({
           );
           return;
         }
-        const src: VerifySource = fresh?.source === "rpc" ? "rpc" : "jupiter";
-        if (side === "from") setFromSource(src);
-        else setToSource(src);
         if (fresh.decimals !== t.decimals) {
           const updated = { ...t, decimals: fresh.decimals };
           if (side === "from") setFrom(updated);
@@ -341,16 +333,6 @@ export function SwapCard({
         </div>
       )}
 
-      {!verifyingDecimals && decimalsOk && (fromSource || toSource) && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-secondary/30 p-2.5 text-[11px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-success" />
-            Decimals verified
-          </span>
-          {fromSource && <SourceBadge symbol={from.symbol} source={fromSource} />}
-          {toSource && <SourceBadge symbol={to.symbol} source={toSource} />}
-        </div>
-      )}
 
       {!verifyingDecimals && decimalsError && (
         <div className="mb-3 flex items-start gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs text-yellow-200">
@@ -464,22 +446,6 @@ export function SwapCard({
         </a>
       </div>
     </div>
-  );
-}
-
-function SourceBadge({ symbol, source }: { symbol: string; source: "jupiter" | "rpc" }) {
-  const isJup = source === "jupiter";
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${
-        isJup
-          ? "border-primary/40 bg-primary/10 text-primary"
-          : "border-yellow-500/40 bg-yellow-500/10 text-yellow-300"
-      }`}
-      title={isJup ? "Decimals sourced from Jupiter token registry" : "Decimals sourced from on-chain RPC getTokenSupply"}
-    >
-      {symbol} · {isJup ? "Jupiter" : "RPC"}
-    </span>
   );
 }
 
