@@ -180,6 +180,7 @@ export const getJupiterSwap = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => SwapSchema.parse(d))
   .handler(async ({ data }) => {
     rateLimit("swap");
+    console.log("getJupiterSwap received quote", data.quoteResponse);
     // Strip our internal marker before forwarding to Jupiter
     const { _feeBps, ...cleanQuote } = data.quoteResponse as any;
     const body: Record<string, unknown> = {
@@ -192,6 +193,7 @@ export const getJupiterSwap = createServerFn({ method: "POST" })
     if (PLATFORM_FEE_WALLET()) {
       body.feeAccount = PLATFORM_FEE_WALLET();
     }
+    console.log("Clean quote sent to Jupiter", body);
     let res: Response;
     try {
       res = await fetchWithTimeout(`${JUPITER()}/swap`, {
