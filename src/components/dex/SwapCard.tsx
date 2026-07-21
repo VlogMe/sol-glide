@@ -194,8 +194,9 @@ export function SwapCard({
 
       return;
 
-      // @ts-expect-error diagnostic-only early return above; keep code below for later restoration
       const Connection: any = null, transaction: any = null;
+      void Connection; void transaction;
+
 
 
 
