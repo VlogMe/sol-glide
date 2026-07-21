@@ -33,6 +33,7 @@ export default defineConfig({
     },
     resolve: {
       alias: [
+        { find: /^buffer$/, replacement: "buffer" },
         { find: /^rpc-websockets$/, replacement: rpcWebsocketsBrowser },
       ],
     },
