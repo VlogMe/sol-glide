@@ -174,8 +174,7 @@ export function SwapCard({
         throw new Error("Jupiter did not return a valid swap transaction");
       }
 
-      const { VersionedTransaction, Connection } = await import("@solana/web3.js");
-      console.log("Buffer test:", typeof Buffer, Buffer?.from);
+      console.log("BUFFER CHECK", { Buffer: typeof Buffer, from: typeof Buffer?.from });
       const txBuffer = Buffer.from(swapTransaction, "base64");
       const transaction = VersionedTransaction.deserialize(txBuffer);
 
