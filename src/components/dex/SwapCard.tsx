@@ -181,20 +181,23 @@ export function SwapCard({
 
         ensureBuffer();
 
+        const binary = atob(swapTransaction);
+        const buf = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
+
+        const { VersionedTransaction, Connection } = await import("@solana/web3.js");
+        const tx = VersionedTransaction.deserialize(buf);
+
         if (typeof provider.signAndSendTransaction === "function") {
-          const r = await provider.signAndSendTransaction({
-            message: swapTransaction, // base64
-          });
+          const r = await provider.signAndSendTransaction(tx);
           signature = r?.signature ?? r;
         } else {
-          const { VersionedTransaction, Connection } = await import("@solana/web3.js");
-          const { Buffer } = await import("buffer");
-          const buf = Buffer.from(swapTransaction, "base64");
-          const tx = VersionedTransaction.deserialize(buf);
           const signed = await provider.signTransaction(tx);
           const rpcUrl = (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
           const connection = new Connection(rpcUrl, "confirmed");
-          signature = await connection.sendRawTransaction(signed.serialize());
+          signature = await connection.sendRawTransaction(signed.serialize(), {
+            skipPreflight: false, maxRetries: 3,
+          });
         }
       } catch (e: any) {
         if (e?.code === 4001) throw e;
