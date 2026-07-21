@@ -74,11 +74,8 @@ export function SwapCard({
     Number.isInteger(t.decimals) && t.decimals >= 0 && t.decimals <= 18;
   const [verifyingDecimals, setVerifyingDecimals] = useState(false);
   const [decimalsError, setDecimalsError] = useState<string | null>(null);
-  type VerifySource = "jupiter" | "rpc" | null;
-  const [fromSource, setFromSource] = useState<VerifySource>(null);
-  const [toSource, setToSource] = useState<VerifySource>(null);
   const fromDecimalsOk = validDecimals(from);
-  const toDecimalsOk = validDecimals(to);
+  const toDecimalsOk = valid-for validDecimals(to);
   // Soft check: only block if the token object itself has invalid decimals.
   // Verification errors from RPC/Jupiter are shown as warnings but do not block.
   const decimalsOk = fromDecimalsOk && toDecimalsOk;
@@ -88,8 +85,6 @@ export function SwapCard({
   useEffect(() => {
     let cancelled = false;
     setDecimalsError(null);
-    setFromSource(null);
-    setToSource(null);
     const check = async (t: Token, side: "from" | "to") => {
       try {
         const fresh: any = await resolveFn({ data: { mint: t.mint } });
@@ -100,9 +95,6 @@ export function SwapCard({
           );
           return;
         }
-        const src: VerifySource = fresh?.source === "rpc" ? "rpc" : "jupiter";
-        if (side === "from") setFromSource(src);
-        else setToSource(src);
         if (fresh.decimals !== t.decimals) {
           const updated = { ...t, decimals: fresh.decimals };
           if (side === "from") setFrom(updated);
