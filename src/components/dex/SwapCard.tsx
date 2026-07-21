@@ -177,33 +177,28 @@ export function SwapCard({
       let signature: string;
       try {
         const swapTransaction = res?.swapTransaction;
-        if (!swapTransaction) {
-          throw new Error("Jupiter failed to return a swap transaction. Please try again.");
-        }
+        if (!swapTransaction) throw new Error("No swap transaction");
 
         const { Buffer } = await import("buffer");
         (globalThis as any).Buffer = Buffer;
-
         ensureBuffer();
 
-        const { VersionedTransaction } = await import("@solana/web3.js");
-
-
-        const buf = Buffer.from(swapTransaction, "base64");
-        const tx = VersionedTransaction.deserialize(buf);
-
-        const { Connection } = await import("@solana/web3.js");
-        const rpcUrl = (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
-        const connection = new Connection(rpcUrl, "confirmed");
+        const tx = {
+          serialize: () => Buffer.from(swapTransaction, "base64"),
+        };
 
         if (typeof provider.signAndSendTransaction === "function") {
           const r = await provider.signAndSendTransaction(tx);
           signature = r?.signature ?? r;
         } else {
-          const signed = await provider.signTransaction(tx);
-          signature = await connection.sendRawTransaction(signed.serialize(), {
-            skipPreflight: false, maxRetries: 3,
-          });
+          // fallback
+          const { VersionedTransaction, Connection } = await import("@solana/web3.js");
+          const buf = Buffer.from(swapTransaction, "base64");
+          const txObj = VersionedTransaction.deserialize(buf);
+          const signed = await provider.signTransaction(txObj);
+          const rpcUrl = (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
+          const connection = new Connection(rpcUrl, "confirmed");
+          signature = await connection.sendRawTransaction(signed.serialize());
         }
       } catch (e: any) {
         if (e?.code === 4001) throw e;
