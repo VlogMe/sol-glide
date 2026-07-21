@@ -69,11 +69,18 @@ export function SwapCard({
 
   const feeBps = NORMAL_FEE_BPS;
 
+  const validDecimals = (t: Token) =>
+    Number.isInteger(t.decimals) && t.decimals >= 0 && t.decimals <= 18;
+  const fromDecimalsOk = validDecimals(from);
+  const toDecimalsOk = validDecimals(to);
+  const decimalsOk = fromDecimalsOk && toDecimalsOk;
+
   useEffect(() => {
     setQuote(null);
     if (debounce.current) clearTimeout(debounce.current);
     const num = Number(amount);
     if (!amount || !isFinite(num) || num <= 0) return;
+    if (!decimalsOk) return;
     debounce.current = setTimeout(async () => {
       try {
         setLoading(true);
@@ -97,7 +104,7 @@ export function SwapCard({
     return () => {
       if (debounce.current) clearTimeout(debounce.current);
     };
-  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals]);
+  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals, decimalsOk]);
 
   // Fully reset swap UI when the wallet disconnects: clear amount, quote,
   // route info, loading flag, and any in-flight debounce.
@@ -145,6 +152,10 @@ export function SwapCard({
 
   const executeSwap = async () => {
     if (!quote) return;
+    if (!decimalsOk) {
+      toast.error("Invalid token decimals — pick a different token.");
+      return;
+    }
     const provider = (window as any).phantom?.solana ?? (window as any).solana;
     if (!provider?.isPhantom || !walletAddress) {
       toast.error("Connect Phantom first");
@@ -274,6 +285,15 @@ export function SwapCard({
         );
       })()}
 
+      {!decimalsOk && (
+        <div className="mb-3 flex items-start gap-2 rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            Invalid token decimals for {!fromDecimalsOk ? from.symbol : to.symbol}. Pick another token to continue.
+          </span>
+        </div>
+      )}
+
       <div className="space-y-2">
         <div className="rounded-2xl bg-secondary/40 border border-border p-4">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
@@ -285,7 +305,8 @@ export function SwapCard({
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
               placeholder="0.00"
-              className="bg-transparent flex-1 text-3xl font-semibold outline-none min-w-0"
+              disabled={!decimalsOk}
+              className="bg-transparent flex-1 text-3xl font-semibold outline-none min-w-0 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <TokenSelect value={from} onChange={setFrom} />
           </div>
@@ -345,7 +366,7 @@ export function SwapCard({
           <button
             type="button"
             onClick={executeSwap}
-            disabled={swapping || loading || !quote}
+            disabled={swapping || loading || !quote || !decimalsOk}
             className="w-full py-4 rounded-2xl text-lg font-bold text-white bg-[linear-gradient(90deg,#9945FF_0%,#14F195_100%)] shadow-lg hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
           >
             {swapping ? (
