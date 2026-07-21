@@ -7,8 +7,6 @@ const rpcWebsocketsBrowser = path.resolve(
   "node_modules/rpc-websockets/dist/index.browser.mjs",
 );
 
-const bufferBrowser = path.resolve(process.cwd(), "node_modules/buffer/index.js");
-
 export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
@@ -28,15 +26,14 @@ export default defineConfig({
       noExternal: ["@solana/web3.js", "rpc-websockets"],
     },
     optimizeDeps: {
-      include: ["@solana/web3.js", "rpc-websockets"],
-      exclude: ["buffer"],
+      include: ["@solana/web3.js", "rpc-websockets", "buffer/"],
     },
     define: {
       global: "globalThis",
     },
     resolve: {
       alias: [
-        { find: /^buffer$/, replacement: bufferBrowser },
+        { find: /^buffer$/, replacement: "buffer/" },
         { find: /^rpc-websockets$/, replacement: rpcWebsocketsBrowser },
       ],
     },
