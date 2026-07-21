@@ -1,6 +1,10 @@
-import { Buffer } from "buffer";
+import { Buffer as BufferPolyfill } from "buffer";
 
-(globalThis as any).Buffer = Buffer;
+const Buffer = BufferPolyfill;
+
+if (typeof globalThis !== "undefined") {
+  (globalThis as any).Buffer = Buffer;
+}
 
 if (typeof window !== "undefined") {
   (window as any).Buffer = Buffer;
