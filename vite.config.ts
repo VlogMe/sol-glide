@@ -36,7 +36,7 @@ export default defineConfig({
       } as any,
     ],
     ssr: {
-      noExternal: ["@solana/web3.js", "rpc-websockets"],
+      noExternal: ["@solana/web3.js", "rpc-websockets", "buffer", "base64-js", "ieee754"],
     },
     optimizeDeps: {
       include: [
