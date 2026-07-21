@@ -343,14 +343,29 @@ export function SwapCard({
         </div>
       )}
 
+      {!verifyingDecimals && decimalsOk && (fromSource || toSource) && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-secondary/30 p-2.5 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-success" />
+            Decimals verified
+          </span>
+          {fromSource && <SourceBadge symbol={from.symbol} source={fromSource} />}
+          {toSource && <SourceBadge symbol={to.symbol} source={toSource} />}
+        </div>
+      )}
+
       {!verifyingDecimals && !decimalsOk && (
         <div className="mb-3 flex items-start gap-2 rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <span>
-            {decimalsError
-              ? decimalsError + " Pick another token to continue."
-              : `Invalid token decimals for ${!fromDecimalsOk ? from.symbol : to.symbol}. Pick another token to continue.`}
-          </span>
+          <div className="space-y-1">
+            <div className="font-medium">Token decimals could not be verified</div>
+            <div className="opacity-90 break-words">
+              {decimalsError
+                ? decimalsError
+                : `Invalid decimals reported for ${!fromDecimalsOk ? from.symbol : to.symbol}.`}
+            </div>
+            <div className="opacity-75">Pick another token to continue.</div>
+          </div>
         </div>
       )}
 
