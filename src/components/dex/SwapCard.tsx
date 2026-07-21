@@ -173,11 +173,9 @@ export function SwapCard({
         throw new Error("Jupiter did not return a valid swap transaction");
       }
 
-      ensureBuffer();
-
       const { VersionedTransaction, Connection } = await import("@solana/web3.js");
-      const buf = Buffer.from(swapTransaction, "base64");
-      const tx = VersionedTransaction.deserialize(buf);
+      const rawTransaction = Buffer.from(swapTransaction, "base64");
+      const tx = VersionedTransaction.deserialize(rawTransaction);
 
       let signature: string;
       const rpcUrl = (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
