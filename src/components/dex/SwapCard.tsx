@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownUp, Loader2, Settings2, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
+import { VersionedTransaction, Connection } from "@solana/web3.js";
 
 import { TOKENS, type Token } from "@/lib/tokens";
 import { getJupiterQuote, getJupiterSwap } from "@/lib/jupiter.functions";
