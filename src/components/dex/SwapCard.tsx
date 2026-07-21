@@ -357,8 +357,6 @@ export function SwapCard({
               <span className="flex items-center justify-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" /> Swapping…
               </span>
-            ) : !walletAddress ? (
-              "Connect wallet to swap"
             ) : !quote ? (
               "Enter an amount"
             ) : (
