@@ -284,24 +284,8 @@ export function SwapCard({
         );
       })()}
 
-      {verifyingDecimals && (
-        <div className="mb-3 flex items-center gap-2 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-          <span>Verifying token decimals on-chain…</span>
-        </div>
-      )}
 
 
-      {!verifyingDecimals && decimalsError && (
-        <div className="mb-3 flex items-start gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs text-yellow-200">
-          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <div className="space-y-1">
-            <div className="font-medium">Decimals not verified</div>
-            <div className="opacity-90 break-words">{decimalsError}</div>
-            <div className="opacity-75">Proceeding with cached decimals — double-check the amount before swapping.</div>
-          </div>
-        </div>
-      )}
 
       <div className="space-y-2">
         <div className="rounded-2xl bg-secondary/40 border border-border p-4">
