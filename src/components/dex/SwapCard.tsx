@@ -177,7 +177,18 @@ export function SwapCard({
       }
 
       console.log("STEP 3 - before web3 import");
-      const { VersionedTransaction, Connection } = await import("@solana/web3.js");
+      console.log("BEFORE WEB3 IMPORT");
+      try {
+        const web3 = await import("@solana/web3.js");
+        console.log("WEB3 IMPORT SUCCESS", {
+          keys: Object.keys(web3),
+          versionedTransaction: typeof web3.VersionedTransaction,
+          connection: typeof web3.Connection,
+        });
+      } catch (error) {
+        console.error("WEB3 IMPORT FAILED", error);
+        throw error;
+      }
       console.log("Before decode", {
         Buffer: typeof Buffer,
         BufferFrom: typeof Buffer?.from,
