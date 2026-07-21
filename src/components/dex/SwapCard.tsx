@@ -33,13 +33,27 @@ export function SwapCard({
   initialFrom?: string;
   initialTo?: string;
 }) {
-  const [from, setFrom] = useState<Token>(
-    TOKENS[initialFrom] ?? TOKENS.SOL ?? Object.values(TOKENS)[0],
-  );
-  const [to, setTo] = useState<Token>(
-    TOKENS[initialTo] ?? TOKENS.USDC ?? Object.values(TOKENS)[1] ?? Object.values(TOKENS)[0],
-  );
-  const [amount, setAmount] = useState("");
+  const [swapState, setSwapState] = useState<{
+    from: Token | null;
+    to: Token | null;
+    fromAmount: string;
+    toAmount: string;
+  }>({
+    from: TOKENS[initialFrom] ?? TOKENS.SOL ?? Object.values(TOKENS)[0] ?? null,
+    to: TOKENS[initialTo] ?? TOKENS.USDC ?? Object.values(TOKENS)[1] ?? Object.values(TOKENS)[0] ?? null,
+    fromAmount: "",
+    toAmount: "",
+  });
+
+  // Strong loading guard — never render token UI until both tokens are resolved.
+  if (!swapState || !swapState.from || !swapState.to) {
+    return (
+      <div className="flex items-center justify-center p-8 text-gray-400">
+        Loading tokens and market data...
+      </div>
+    );
+  }
+
   const [slippageBps, setSlippageBps] = useState(50);
   const [quote, setQuote] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -51,11 +65,14 @@ export function SwapCard({
   const swapFn = useServerFn(getJupiterSwap);
   const feeBps = NORMAL_FEE_BPS;
 
+  const { from, to, fromAmount } = swapState;
+
   useEffect(() => {
     setQuote(null);
+    setSwapState((prev) => ({ ...prev, toAmount: "" }));
     if (debounce.current) clearTimeout(debounce.current);
-    const num = Number(amount);
-    if (!amount || !isFinite(num) || num <= 0) return;
+    const num = Number(fromAmount);
+    if (!fromAmount || !isFinite(num) || num <= 0) return;
     debounce.current = setTimeout(async () => {
       try {
         setLoading(true);
@@ -64,6 +81,12 @@ export function SwapCard({
           data: { inputMint: from.mint, outputMint: to.mint, amount: raw, slippageBps },
         });
         setQuote(q);
+        if (q?.outAmount) {
+          setSwapState((prev) => ({
+            ...prev,
+            toAmount: (Number(q.outAmount) / 10 ** to.decimals).toString(),
+          }));
+        }
       } catch (e: any) {
         console.error(e);
         toast.error(friendlyError(String(e?.message || "Failed to fetch quote")));
@@ -74,12 +97,12 @@ export function SwapCard({
     return () => {
       if (debounce.current) clearTimeout(debounce.current);
     };
-  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals]);
+  }, [fromAmount, from.mint, to.mint, slippageBps, quoteFn, from.decimals, to.decimals]);
 
   useEffect(() => {
     const onDisconnect = () => {
       if (debounce.current) clearTimeout(debounce.current);
-      setAmount("");
+      setSwapState((prev) => ({ ...prev, fromAmount: "" }));
       setQuote(null);
       setLoading(false);
       setSwapping(false);
@@ -109,12 +132,15 @@ export function SwapCard({
         .map((r: any) => r?.swapInfo?.label)
         .filter((label: unknown): label is string => typeof label === "string" && label.length > 0)
     : [];
-  const feeAmount = amount ? Number(amount) * (feeBps / 10_000) : 0;
+  const feeAmount = fromAmount ? Number(fromAmount) * (feeBps / 10_000) : 0;
 
   const flip = () => {
-    setFrom(to);
-    setTo(from);
-    setAmount(outAmount || "");
+    setSwapState((prev) => ({
+      from: prev.to!,
+      to: prev.from!,
+      fromAmount: prev.toAmount || "",
+      toAmount: prev.fromAmount || "",
+    }));
   };
 
   const executeSwap = async () => {
@@ -177,7 +203,7 @@ export function SwapCard({
           Swap sent — view on Solscan
         </a>,
       );
-      setAmount("");
+      setSwapState((prev) => ({ ...prev, fromAmount: "" }));
       setQuote(null);
     } catch (e: any) {
       console.error(e);
@@ -190,14 +216,6 @@ export function SwapCard({
   };
 
   const lowLiquidity = to.symbol === "SPDD" || priceImpact > 3;
-
-  if (!from || !to) {
-    return (
-      <div className="w-full max-w-md mx-auto p-6 text-center text-sm text-muted-foreground">
-        Loading token configuration…
-      </div>
-    );
-  }
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -253,15 +271,15 @@ export function SwapCard({
               <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
                 You pay
               </span>
-              <TokenSelect value={from} onChange={(t) => setFrom(t)} />
+              <TokenSelect value={from} onChange={(t) => setSwapState((prev) => ({ ...prev, from: t }))} />
             </div>
             <input
               type="number"
               inputMode="decimal"
               min={0}
               step={0.000001}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              value={fromAmount}
+              onChange={(e) => setSwapState((prev) => ({ ...prev, fromAmount: e.target.value }))}
               placeholder="0.00"
               className="w-full bg-transparent text-3xl font-semibold outline-none placeholder:text-muted-foreground/40"
             />
@@ -283,7 +301,7 @@ export function SwapCard({
               <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
                 You receive
               </span>
-              <TokenSelect value={to} onChange={(t) => setTo(t)} />
+              <TokenSelect value={to} onChange={(t) => setSwapState((prev) => ({ ...prev, to: t }))} />
             </div>
             <input
               type="text"
