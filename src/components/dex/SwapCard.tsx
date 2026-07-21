@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 
 import { TOKENS, type Token } from "@/lib/tokens";
-import { getJupiterQuote, getJupiterSwap } from "@/lib/jupiter.functions";
+import { getJupiterQuote, getJupiterSwap, resolveTokenByMint } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import { PhantomButton, WALLET_DISCONNECT_EVENT, WALLET_CONNECT_EVENT } from "./PhantomButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -66,21 +66,55 @@ export function SwapCard({
 
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
+  const resolveFn = useServerFn(resolveTokenByMint);
 
   const feeBps = NORMAL_FEE_BPS;
 
   const validDecimals = (t: Token) =>
     Number.isInteger(t.decimals) && t.decimals >= 0 && t.decimals <= 18;
+  const [verifyingDecimals, setVerifyingDecimals] = useState(false);
+  const [decimalsError, setDecimalsError] = useState<string | null>(null);
   const fromDecimalsOk = validDecimals(from);
   const toDecimalsOk = validDecimals(to);
-  const decimalsOk = fromDecimalsOk && toDecimalsOk;
+  const decimalsOk = fromDecimalsOk && toDecimalsOk && !decimalsError;
+
+  // Re-verify decimals on-chain whenever a token changes, so stale/missing
+  // decimals never slip through into a quote / swap call.
+  useEffect(() => {
+    let cancelled = false;
+    setDecimalsError(null);
+    const check = async (t: Token, side: "from" | "to") => {
+      try {
+        const fresh: any = await resolveFn({ data: { mint: t.mint } });
+        if (cancelled) return;
+        if (!Number.isInteger(fresh?.decimals) || fresh.decimals < 0 || fresh.decimals > 18) {
+          setDecimalsError(`Could not verify decimals for ${t.symbol}.`);
+          return;
+        }
+        if (fresh.decimals !== t.decimals) {
+          const updated = { ...t, decimals: fresh.decimals };
+          if (side === "from") setFrom(updated);
+          else setTo(updated);
+        }
+      } catch {
+        if (!cancelled) setDecimalsError(`Could not verify decimals for ${t.symbol}.`);
+      }
+    };
+    setVerifyingDecimals(true);
+    Promise.all([check(from, "from"), check(to, "to")]).finally(() => {
+      if (!cancelled) setVerifyingDecimals(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [from.mint, to.mint, resolveFn]);
 
   useEffect(() => {
     setQuote(null);
     if (debounce.current) clearTimeout(debounce.current);
     const num = Number(amount);
     if (!amount || !isFinite(num) || num <= 0) return;
-    if (!decimalsOk) return;
+    if (!decimalsOk || verifyingDecimals) return;
     debounce.current = setTimeout(async () => {
       try {
         setLoading(true);
@@ -104,7 +138,7 @@ export function SwapCard({
     return () => {
       if (debounce.current) clearTimeout(debounce.current);
     };
-  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals, decimalsOk]);
+  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals, decimalsOk, verifyingDecimals]);
 
   // Fully reset swap UI when the wallet disconnects: clear amount, quote,
   // route info, loading flag, and any in-flight debounce.
@@ -152,6 +186,10 @@ export function SwapCard({
 
   const executeSwap = async () => {
     if (!quote) return;
+    if (verifyingDecimals) {
+      toast.error("Verifying token decimals — try again in a moment.");
+      return;
+    }
     if (!decimalsOk) {
       toast.error("Invalid token decimals — pick a different token.");
       return;
@@ -285,11 +323,20 @@ export function SwapCard({
         );
       })()}
 
-      {!decimalsOk && (
+      {verifyingDecimals && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+          <span>Verifying token decimals on-chain…</span>
+        </div>
+      )}
+
+      {!verifyingDecimals && !decimalsOk && (
         <div className="mb-3 flex items-start gap-2 rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>
-            Invalid token decimals for {!fromDecimalsOk ? from.symbol : to.symbol}. Pick another token to continue.
+            {decimalsError
+              ? decimalsError + " Pick another token to continue."
+              : `Invalid token decimals for ${!fromDecimalsOk ? from.symbol : to.symbol}. Pick another token to continue.`}
           </span>
         </div>
       )}
@@ -366,7 +413,7 @@ export function SwapCard({
           <button
             type="button"
             onClick={executeSwap}
-            disabled={swapping || loading || !quote || !decimalsOk}
+            disabled={swapping || loading || !quote || !decimalsOk || verifyingDecimals}
             className="w-full py-4 rounded-2xl text-lg font-bold text-white bg-[linear-gradient(90deg,#9945FF_0%,#14F195_100%)] shadow-lg hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
           >
             {swapping ? (
