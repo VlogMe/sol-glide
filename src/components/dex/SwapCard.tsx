@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ensureBuffer } from "@/lib/buffer-polyfill";
 
 const NORMAL_FEE_BPS = 50;
+const PLATFORM_FEE_WALLET = "8FsSKh1dhgPvKTmnKvo9VJwshD3gqq7AbNeqUXaWrPp2";
 
 function friendlyError(raw: string): string {
   return raw.length > 160 ? raw.slice(0, 160) + "…" : raw;
