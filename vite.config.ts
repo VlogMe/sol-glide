@@ -28,7 +28,8 @@ export default defineConfig({
       noExternal: ["@solana/web3.js", "rpc-websockets"],
     },
     optimizeDeps: {
-      include: ["@solana/web3.js", "rpc-websockets", "buffer"],
+      include: ["@solana/web3.js", "rpc-websockets"],
+      exclude: ["buffer"],
     },
     define: {
       global: "globalThis",
