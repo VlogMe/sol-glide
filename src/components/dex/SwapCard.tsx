@@ -69,6 +69,12 @@ export function SwapCard({
 
   const feeBps = NORMAL_FEE_BPS;
 
+  const validDecimals = (t: Token) =>
+    Number.isInteger(t.decimals) && t.decimals >= 0 && t.decimals <= 18;
+  const fromDecimalsOk = validDecimals(from);
+  const toDecimalsOk = validDecimals(to);
+  const decimalsOk = fromDecimalsOk && toDecimalsOk;
+
   useEffect(() => {
     setQuote(null);
     if (debounce.current) clearTimeout(debounce.current);
