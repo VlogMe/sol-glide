@@ -150,6 +150,7 @@ export function SwapCard({
   };
 
   const executeSwap = async () => {
+    console.log("ExecuteSwap started", {quote, fromToken: from, toToken: to, amount, walletAddress});
     if (!quote) return;
     if (!decimalsOk) {
       toast.error("Invalid token decimals — pick a different token.");
@@ -162,6 +163,7 @@ export function SwapCard({
     }
     setSwapping(true);
     try {
+      console.log("Passing quote to server", quote);
       const res = await swapFn({
         data: {
           quoteResponse: quote,
