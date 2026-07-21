@@ -347,7 +347,7 @@ export function SwapCard({
       </div>
 
       <p className="text-[10px] text-muted-foreground text-center mt-3">
-        Powered by Jupiter · Platform fee wallet {(process.env.PLATFORM_FEE_WALLET || "8FsSKh1dhgPvKTmnKvo9VJwshD3gqq7AbNeqUXaWrPp2").slice(0, 6)}…
+        Powered by Jupiter · Platform fee wallet {PLATFORM_FEE_WALLET.slice(0, 6)}…
       </p>
     </div>
   );
