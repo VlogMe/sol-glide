@@ -13,14 +13,11 @@ export default defineConfig({
   },
   vite: {
     plugins: [
-      {
-        ...nodePolyfills({
-          include: ["buffer", "process", "util", "stream", "events"],
-          globals: { Buffer: true, global: true, process: true },
-          protocolImports: false,
-        }),
-        applyToEnvironment: (env: any) => env.name === "client",
-      } as any,
+      nodePolyfills({
+        include: ["buffer", "process", "util", "stream", "events"],
+        globals: { Buffer: true, global: true, process: true },
+        protocolImports: false,
+      }),
     ],
     ssr: {
       noExternal: ["@solana/web3.js", "rpc-websockets"],
