@@ -178,6 +178,7 @@ export function SwapCard({
 
       console.log("STEP 3 - before web3 import");
       console.log("BEFORE WEB3 IMPORT");
+      let VersionedTransaction: any, Connection: any;
       try {
         const web3 = await import("@solana/web3.js");
         console.log("WEB3 IMPORT SUCCESS", {
@@ -185,7 +186,8 @@ export function SwapCard({
           versionedTransaction: typeof web3.VersionedTransaction,
           connection: typeof web3.Connection,
         });
-        const { VersionedTransaction, Connection } = web3;
+        VersionedTransaction = web3.VersionedTransaction;
+        Connection = web3.Connection;
       } catch (error) {
         console.error("WEB3 IMPORT FAILED", error);
         throw error;
