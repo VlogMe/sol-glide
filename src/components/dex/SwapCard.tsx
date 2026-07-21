@@ -186,6 +186,7 @@ export function SwapCard({
           VersionedTransaction: typeof web3.VersionedTransaction,
           Connection: typeof web3.Connection,
         });
+        console.log("WEB3 VERSION LOAD SUCCESS");
       } catch (error: any) {
         console.error("WEB3 LOAD ERROR FULL", error);
         console.error("WEB3 LOAD ERROR STACK", error?.stack);
