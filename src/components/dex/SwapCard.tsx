@@ -172,32 +172,19 @@ export function SwapCard({
 
       let signature: string;
       try {
-        if (!res?.swapTransaction) {
-          throw new Error("No swap transaction from Jupiter");
+        const swapTransaction = res?.swapTransaction;
+        if (!swapTransaction) {
+          throw new Error("Jupiter failed to return a swap transaction. Please try again.");
         }
-        const swapTransaction: string = res.swapTransaction;
 
-        // Ensure Buffer/process globals exist BEFORE loading web3.js.
         ensureBuffer();
-        await import("@/lib/buffer-polyfill");
-        const { Buffer } = await import("buffer");
-        (globalThis as any).Buffer = (globalThis as any).Buffer || Buffer;
 
-        const { VersionedTransaction, Connection } = await import("@solana/web3.js");
-
+        const { VersionedTransaction } = await import("@solana/web3.js");
         const buf = Buffer.from(swapTransaction, "base64");
+        const tx = VersionedTransaction.deserialize(buf);
 
-        let tx;
-        try {
-          tx = VersionedTransaction.deserialize(buf);
-        } catch (err: any) {
-          throw new Error(
-            "Failed to deserialize swap transaction: " + (err?.message || String(err)),
-          );
-        }
-
-        const rpcUrl =
-          (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
+        const { Connection } = await import("@solana/web3.js");
+        const rpcUrl = (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
         const connection = new Connection(rpcUrl, "confirmed");
 
         if (typeof provider.signAndSendTransaction === "function") {
@@ -206,15 +193,13 @@ export function SwapCard({
         } else {
           const signed = await provider.signTransaction(tx);
           signature = await connection.sendRawTransaction(signed.serialize(), {
-            skipPreflight: false,
-            maxRetries: 3,
+            skipPreflight: false, maxRetries: 3,
           });
         }
       } catch (e: any) {
         if (e?.code === 4001) throw e;
         console.error(e);
-        const msg = e?.message || e?.error || String(e);
-        throw new Error(msg || "Failed to prepare swap. Please try again.");
+        throw new Error(e?.message || "Failed to prepare swap. Please try again.");
       }
 
 
