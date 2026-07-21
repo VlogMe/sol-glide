@@ -179,23 +179,19 @@ export function SwapCard({
         const swapTransaction = res?.swapTransaction;
         if (!swapTransaction) throw new Error("No swap transaction");
 
-        const { Buffer } = await import("buffer");
-        (globalThis as any).Buffer = Buffer;
         ensureBuffer();
 
-        const tx = {
-          serialize: () => Buffer.from(swapTransaction, "base64"),
-        };
-
         if (typeof provider.signAndSendTransaction === "function") {
-          const r = await provider.signAndSendTransaction(tx);
+          const r = await provider.signAndSendTransaction({
+            message: swapTransaction, // base64
+          });
           signature = r?.signature ?? r;
         } else {
-          // fallback
           const { VersionedTransaction, Connection } = await import("@solana/web3.js");
+          const { Buffer } = await import("buffer");
           const buf = Buffer.from(swapTransaction, "base64");
-          const txObj = VersionedTransaction.deserialize(buf);
-          const signed = await provider.signTransaction(txObj);
+          const tx = VersionedTransaction.deserialize(buf);
+          const signed = await provider.signTransaction(tx);
           const rpcUrl = (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
           const connection = new Connection(rpcUrl, "confirmed");
           signature = await connection.sendRawTransaction(signed.serialize());
