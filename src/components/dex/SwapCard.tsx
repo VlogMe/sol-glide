@@ -352,17 +352,13 @@ export function SwapCard({
         </div>
       )}
 
-      {!verifyingDecimals && !decimalsOk && (
-        <div className="mb-3 flex items-start gap-2 rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
+      {!verifyingDecimals && decimalsError && (
+        <div className="mb-3 flex items-start gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs text-yellow-200">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <div className="space-y-1">
-            <div className="font-medium">Token decimals could not be verified</div>
-            <div className="opacity-90 break-words">
-              {decimalsError
-                ? decimalsError
-                : `Invalid decimals reported for ${!fromDecimalsOk ? from.symbol : to.symbol}.`}
-            </div>
-            <div className="opacity-75">Pick another token to continue.</div>
+            <div className="font-medium">Decimals not verified</div>
+            <div className="opacity-90 break-words">{decimalsError}</div>
+            <div className="opacity-75">Proceeding with cached decimals — double-check the amount before swapping.</div>
           </div>
         </div>
       )}
