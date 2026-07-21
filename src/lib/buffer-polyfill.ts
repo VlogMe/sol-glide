@@ -1,18 +1,25 @@
-import { Buffer } from "buffer";
+export async function setupBuffer() {
+  if (typeof window === "undefined") return;
 
-export function setupBuffer() {
-  if (typeof globalThis !== "undefined") {
-    globalThis.Buffer = Buffer;
+  try {
+    const { Buffer } = await import("buffer");
+
+    if (typeof globalThis !== "undefined") {
+      (globalThis as any).Buffer = Buffer;
+    }
+
+    (window as any).Buffer = Buffer;
+
+    console.log("BUFFER SETUP CHECK", {
+      Buffer: typeof (globalThis as any).Buffer,
+      BufferFrom: typeof (globalThis as any).Buffer?.from,
+    });
+  } catch (err) {
+    console.error("BUFFER SETUP FAILED", err);
   }
-
-  if (typeof window !== "undefined") {
-    window.Buffer = Buffer;
-  }
-
-  console.log("BUFFER SETUP CHECK", {
-    Buffer: typeof globalThis.Buffer,
-    BufferFrom: typeof globalThis.Buffer?.from
-  });
 }
 
-setupBuffer();
+export async function ensureBuffer() {
+  if (typeof window === "undefined") return;
+  await setupBuffer();
+}
