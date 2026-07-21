@@ -66,14 +66,48 @@ export function SwapCard({
 
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
+  const resolveFn = useServerFn(resolveTokenByMint);
 
   const feeBps = NORMAL_FEE_BPS;
 
   const validDecimals = (t: Token) =>
     Number.isInteger(t.decimals) && t.decimals >= 0 && t.decimals <= 18;
+  const [verifyingDecimals, setVerifyingDecimals] = useState(false);
+  const [decimalsError, setDecimalsError] = useState<string | null>(null);
   const fromDecimalsOk = validDecimals(from);
   const toDecimalsOk = validDecimals(to);
-  const decimalsOk = fromDecimalsOk && toDecimalsOk;
+  const decimalsOk = fromDecimalsOk && toDecimalsOk && !decimalsError;
+
+  // Re-verify decimals on-chain whenever a token changes, so stale/missing
+  // decimals never slip through into a quote / swap call.
+  useEffect(() => {
+    let cancelled = false;
+    setDecimalsError(null);
+    const check = async (t: Token, side: "from" | "to") => {
+      try {
+        const fresh: any = await resolveFn({ data: { mint: t.mint } });
+        if (cancelled) return;
+        if (!Number.isInteger(fresh?.decimals) || fresh.decimals < 0 || fresh.decimals > 18) {
+          setDecimalsError(`Could not verify decimals for ${t.symbol}.`);
+          return;
+        }
+        if (fresh.decimals !== t.decimals) {
+          const updated = { ...t, decimals: fresh.decimals };
+          if (side === "from") setFrom(updated);
+          else setTo(updated);
+        }
+      } catch {
+        if (!cancelled) setDecimalsError(`Could not verify decimals for ${t.symbol}.`);
+      }
+    };
+    setVerifyingDecimals(true);
+    Promise.all([check(from, "from"), check(to, "to")]).finally(() => {
+      if (!cancelled) setVerifyingDecimals(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [from.mint, to.mint, resolveFn]);
 
   useEffect(() => {
     setQuote(null);
