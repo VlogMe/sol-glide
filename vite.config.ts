@@ -13,14 +13,14 @@ export default defineConfig({
   },
   vite: {
     plugins: [
-      nodePolyfills({
-        include: ["buffer", "process", "util", "stream", "events"],
-        globals: { Buffer: true, global: true, process: true },
-        protocolImports: false,
-        // Only polyfill in the browser bundle; SSR/Nitro has real node:buffer.
-        // Applying to SSR breaks node:buffer imports (crossws, TanStack compiler).
-        applyToEnvironment: (env) => env.name === "client",
-      }),
+      {
+        ...nodePolyfills({
+          include: ["buffer", "process", "util", "stream", "events"],
+          globals: { Buffer: true, global: true, process: true },
+          protocolImports: false,
+        }),
+        applyToEnvironment: (env: { name: string }) => env.name === "client",
+      } as any,
     ],
     ssr: {
       noExternal: ["@solana/web3.js", "rpc-websockets"],
