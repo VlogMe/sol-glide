@@ -184,6 +184,12 @@ export function SwapCard({
         ensureBuffer();
 
         const { VersionedTransaction } = await import("@solana/web3.js");
+
+        if (typeof Buffer === "undefined") {
+          const { Buffer } = await import("buffer");
+          (globalThis as any).Buffer = Buffer;
+        }
+
         const buf = Buffer.from(swapTransaction, "base64");
         const tx = VersionedTransaction.deserialize(buf);
 
