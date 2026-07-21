@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 
 import { TOKENS, type Token } from "@/lib/tokens";
-import { getJupiterQuote, getJupiterSwap, resolveTokenByMint } from "@/lib/jupiter.functions";
+import { getJupiterQuote, getJupiterSwap } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import { PhantomButton, WALLET_DISCONNECT_EVENT, WALLET_CONNECT_EVENT } from "./PhantomButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
