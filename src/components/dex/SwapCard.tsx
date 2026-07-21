@@ -79,7 +79,9 @@ export function SwapCard({
   const [toSource, setToSource] = useState<VerifySource>(null);
   const fromDecimalsOk = validDecimals(from);
   const toDecimalsOk = validDecimals(to);
-  const decimalsOk = fromDecimalsOk && toDecimalsOk && !decimalsError;
+  // Soft check: only block if the token object itself has invalid decimals.
+  // Verification errors from RPC/Jupiter are shown as warnings but do not block.
+  const decimalsOk = fromDecimalsOk && toDecimalsOk;
 
   // Re-verify decimals on-chain whenever a token changes, so stale/missing
   // decimals never slip through into a quote / swap call.
@@ -127,7 +129,7 @@ export function SwapCard({
     if (debounce.current) clearTimeout(debounce.current);
     const num = Number(amount);
     if (!amount || !isFinite(num) || num <= 0) return;
-    if (!decimalsOk || verifyingDecimals) return;
+    if (!decimalsOk) return;
     debounce.current = setTimeout(async () => {
       try {
         setLoading(true);
@@ -199,10 +201,6 @@ export function SwapCard({
 
   const executeSwap = async () => {
     if (!quote) return;
-    if (verifyingDecimals) {
-      toast.error("Verifying token decimals — try again in a moment.");
-      return;
-    }
     if (!decimalsOk) {
       toast.error("Invalid token decimals — pick a different token.");
       return;
@@ -354,17 +352,13 @@ export function SwapCard({
         </div>
       )}
 
-      {!verifyingDecimals && !decimalsOk && (
-        <div className="mb-3 flex items-start gap-2 rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
+      {!verifyingDecimals && decimalsError && (
+        <div className="mb-3 flex items-start gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs text-yellow-200">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <div className="space-y-1">
-            <div className="font-medium">Token decimals could not be verified</div>
-            <div className="opacity-90 break-words">
-              {decimalsError
-                ? decimalsError
-                : `Invalid decimals reported for ${!fromDecimalsOk ? from.symbol : to.symbol}.`}
-            </div>
-            <div className="opacity-75">Pick another token to continue.</div>
+            <div className="font-medium">Decimals not verified</div>
+            <div className="opacity-90 break-words">{decimalsError}</div>
+            <div className="opacity-75">Proceeding with cached decimals — double-check the amount before swapping.</div>
           </div>
         </div>
       )}
