@@ -1,4 +1,8 @@
 import "@/lib/buffer-polyfill";
+import { ensureBuffer } from "@/lib/buffer-polyfill";
+
+ensureBuffer();
+
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {

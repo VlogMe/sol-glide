@@ -1,4 +1,9 @@
 import "@/lib/buffer-polyfill";
+import { ensureBuffer } from "@/lib/buffer-polyfill";
+
+// Force ensureBuffer to run before any @solana/web3.js module init in this chunk.
+ensureBuffer();
+
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownUp, Loader2, Settings2, Info } from "lucide-react";
