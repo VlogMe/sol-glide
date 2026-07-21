@@ -74,6 +74,9 @@ export function SwapCard({
     Number.isInteger(t.decimals) && t.decimals >= 0 && t.decimals <= 18;
   const [verifyingDecimals, setVerifyingDecimals] = useState(false);
   const [decimalsError, setDecimalsError] = useState<string | null>(null);
+  type VerifySource = "jupiter" | "rpc" | null;
+  const [fromSource, setFromSource] = useState<VerifySource>(null);
+  const [toSource, setToSource] = useState<VerifySource>(null);
   const fromDecimalsOk = validDecimals(from);
   const toDecimalsOk = validDecimals(to);
   const decimalsOk = fromDecimalsOk && toDecimalsOk && !decimalsError;
@@ -83,21 +86,31 @@ export function SwapCard({
   useEffect(() => {
     let cancelled = false;
     setDecimalsError(null);
+    setFromSource(null);
+    setToSource(null);
     const check = async (t: Token, side: "from" | "to") => {
       try {
         const fresh: any = await resolveFn({ data: { mint: t.mint } });
         if (cancelled) return;
         if (!Number.isInteger(fresh?.decimals) || fresh.decimals < 0 || fresh.decimals > 18) {
-          setDecimalsError(`Could not verify decimals for ${t.symbol}.`);
+          setDecimalsError(
+            `Decimals returned for ${t.symbol} are invalid (got ${String(fresh?.decimals)}).`,
+          );
           return;
         }
+        const src: VerifySource = fresh?.source === "rpc" ? "rpc" : "jupiter";
+        if (side === "from") setFromSource(src);
+        else setToSource(src);
         if (fresh.decimals !== t.decimals) {
           const updated = { ...t, decimals: fresh.decimals };
           if (side === "from") setFrom(updated);
           else setTo(updated);
         }
-      } catch {
-        if (!cancelled) setDecimalsError(`Could not verify decimals for ${t.symbol}.`);
+      } catch (e: any) {
+        if (!cancelled) {
+          const reason = String(e?.message || e || "unknown error");
+          setDecimalsError(`Could not verify decimals for ${t.symbol}: ${reason}`);
+        }
       }
     };
     setVerifyingDecimals(true);
