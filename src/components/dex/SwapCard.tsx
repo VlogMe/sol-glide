@@ -319,11 +319,20 @@ export function SwapCard({
         );
       })()}
 
-      {!decimalsOk && (
+      {verifyingDecimals && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+          <span>Verifying token decimals on-chain…</span>
+        </div>
+      )}
+
+      {!verifyingDecimals && !decimalsOk && (
         <div className="mb-3 flex items-start gap-2 rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>
-            Invalid token decimals for {!fromDecimalsOk ? from.symbol : to.symbol}. Pick another token to continue.
+            {decimalsError
+              ? decimalsError + " Pick another token to continue."
+              : `Invalid token decimals for ${!fromDecimalsOk ? from.symbol : to.symbol}. Pick another token to continue.`}
           </span>
         </div>
       )}
