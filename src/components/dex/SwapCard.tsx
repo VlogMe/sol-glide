@@ -1,4 +1,6 @@
 import "@/lib/buffer-polyfill";
+import { Buffer } from "buffer";
+import { VersionedTransaction, Connection } from "@solana/web3.js";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownUp, Loader2, Settings2, Info, AlertTriangle } from "lucide-react";
@@ -10,7 +12,6 @@ import { getJupiterQuote, getJupiterSwap } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import { PhantomButton, WALLET_DISCONNECT_EVENT, WALLET_CONNECT_EVENT } from "./PhantomButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Buffer } from "buffer";
 
 const NORMAL_FEE_BPS = 50;
 const PLATFORM_FEE_WALLET = "8FsSKh1dhgPvKTmnKvo9VJwshD3gqq7AbNeqUXaWrPp2";
@@ -173,8 +174,7 @@ export function SwapCard({
         throw new Error("Jupiter did not return a valid swap transaction");
       }
 
-      const { VersionedTransaction, Connection } = await import("@solana/web3.js");
-      console.log("Buffer test:", typeof Buffer, Buffer?.from);
+      console.log("BUFFER CHECK", { Buffer: typeof Buffer, from: typeof Buffer?.from });
       const txBuffer = Buffer.from(swapTransaction, "base64");
       const transaction = VersionedTransaction.deserialize(txBuffer);
 
