@@ -201,7 +201,10 @@ export function SwapCard({
       } catch (e: any) {
         if (e?.code === 4001) throw e;
         console.error(e);
-        throw new Error("Failed to prepare swap. Please try again.");
+        // Preserve the real underlying message (Jupiter simulation failure,
+        // insufficient funds, slippage exceeded, etc.) instead of masking it.
+        const msg = e?.message || e?.error || String(e);
+        throw new Error(msg || "Failed to prepare swap. Please try again.");
       }
 
       toast.success(
