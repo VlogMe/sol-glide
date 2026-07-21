@@ -473,6 +473,22 @@ export function SwapCard({
   );
 }
 
+function SourceBadge({ symbol, source }: { symbol: string; source: "jupiter" | "rpc" }) {
+  const isJup = source === "jupiter";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${
+        isJup
+          ? "border-primary/40 bg-primary/10 text-primary"
+          : "border-yellow-500/40 bg-yellow-500/10 text-yellow-300"
+      }`}
+      title={isJup ? "Decimals sourced from Jupiter token registry" : "Decimals sourced from on-chain RPC getTokenSupply"}
+    >
+      {symbol} · {isJup ? "Jupiter" : "RPC"}
+    </span>
+  );
+}
+
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between text-muted-foreground">
