@@ -155,17 +155,21 @@ export function SwapCard({
         },
       });
 
-      const swapTransaction = res?.swapTransaction;
-      if (!swapTransaction || typeof swapTransaction !== "string") {
-        throw new Error("Jupiter did not return a valid swap transaction. Please try again.");
-      }
-
       let signature: string;
       try {
-        const { VersionedTransaction, Connection } = await import("@solana/web3.js");
+        const swapTransaction = res?.swapTransaction;
+        if (!swapTransaction) {
+          throw new Error("Jupiter failed to return a swap transaction. Please try again.");
+        }
+
+        await import("@/lib/buffer-polyfill");
+
+        const { VersionedTransaction } = await import("@solana/web3.js");
 
         const buf = Uint8Array.from(atob(swapTransaction), (c) => c.charCodeAt(0));
         const tx = VersionedTransaction.deserialize(buf);
+
+        const { Connection } = await import("@solana/web3.js");
 
         const rpcUrl =
           (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
