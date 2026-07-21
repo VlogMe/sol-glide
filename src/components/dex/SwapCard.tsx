@@ -201,7 +201,10 @@ export function SwapCard({
       } catch (e: any) {
         if (e?.code === 4001) throw e;
         console.error(e);
-        throw new Error("Failed to prepare swap. Please try again.");
+        // Preserve the real underlying message (Jupiter simulation failure,
+        // insufficient funds, slippage exceeded, etc.) instead of masking it.
+        const msg = e?.message || e?.error || String(e);
+        throw new Error(msg || "Failed to prepare swap. Please try again.");
       }
 
       toast.success(
@@ -260,12 +263,24 @@ export function SwapCard({
         </Popover>
       </div>
 
-      {(from.warn || to.warn) && (
-        <div className="mb-3 flex items-start gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs text-yellow-200">
-          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <span>Low liquidity / bonding-curve token — trade carefully.</span>
-        </div>
-      )}
+      {(() => {
+        const LOW_LIQ_MINTS = new Set([
+          "C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump", // SPDD
+        ]);
+        const lowLiq =
+          from.warn ||
+          to.warn ||
+          LOW_LIQ_MINTS.has(from.mint) ||
+          LOW_LIQ_MINTS.has(to.mint) ||
+          priceImpact > 3;
+        if (!lowLiq) return null;
+        return (
+          <div className="mb-3 flex items-start gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs text-yellow-200">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>Low liquidity — high slippage expected. Trade small amounts.</span>
+          </div>
+        );
+      })()}
 
       <div className="space-y-2">
         <div className="rounded-2xl bg-secondary/40 border border-border p-4">
