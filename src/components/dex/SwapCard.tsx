@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownUp, Loader2, Settings2, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { VersionedTransaction, Connection } from "@solana/web3.js";
+
 
 import { TOKENS, type Token } from "@/lib/tokens";
 import { getJupiterQuote, getJupiterSwap } from "@/lib/jupiter.functions";
@@ -176,7 +176,8 @@ export function SwapCard({
         throw new Error("Jupiter did not return a valid swap transaction");
       }
 
-      console.log("STEP 3 - web3 imported statically");
+      console.log("STEP 3 - before web3 import");
+      const { VersionedTransaction, Connection } = await import("@solana/web3.js");
       console.log("Before decode", {
         Buffer: typeof Buffer,
         BufferFrom: typeof Buffer?.from,
