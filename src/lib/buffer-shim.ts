@@ -1,22 +1,11 @@
-import BufferDefault from "buffer/";
-import * as BufferNamespace from "buffer/";
+// SSR-safe Buffer shim.
+// - On the server: Node provides `Buffer` as a global.
+// - On the client: vite-plugin-node-polyfills injects `Buffer` as a global.
+// Either way we can just read it off `globalThis` without importing the CJS
+// `buffer` package (which breaks in Vite's SSR ESM module runner because it
+// uses `require`).
 
-const BufferModule =
-  (BufferNamespace as any).Buffer != null
-    ? BufferNamespace
-    : ((BufferNamespace as any).default as any)?.Buffer != null
-      ? (BufferNamespace as any).default
-      : (BufferDefault as any)?.Buffer != null
-        ? BufferDefault
-        : BufferNamespace;
+const BufferImpl: any = (globalThis as any).Buffer;
 
-export const Buffer = (BufferModule as any).Buffer ?? BufferModule;
-export const SlowBuffer = (BufferModule as any).SlowBuffer;
-export const INSPECT_MAX_BYTES = (BufferModule as any).INSPECT_MAX_BYTES;
-export const kMaxLength = (BufferModule as any).kMaxLength;
-
-if (typeof globalThis !== "undefined" && typeof Buffer?.from === "function") {
-  (globalThis as any).Buffer = Buffer;
-}
-
-export default BufferModule;
+export const Buffer = BufferImpl;
+export default { Buffer: BufferImpl };
