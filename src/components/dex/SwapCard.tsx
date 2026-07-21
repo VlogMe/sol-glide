@@ -31,7 +31,7 @@ function loadTerminalScript(): Promise<void> {
   });
 }
 
-export default function SwapCard() {
+export function SwapCard(_props: { initialFrom?: string; initialTo?: string } = {}) {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
