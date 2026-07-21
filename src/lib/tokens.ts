@@ -114,8 +114,8 @@ export const TOKEN_LIST = Object.values(TOKENS);
 export const SPDD_MINT = "C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump";
 
 export const POPULAR_PAIRS: { from: string; to: string; vip?: boolean }[] = [
-  { from: "SOL", to: "SPDD", vip: true },
   { from: "SOL", to: "USDC" },
+  { from: "SOL", to: "SPDD", vip: true },
   { from: "SOL", to: "USDT" },
   { from: "SOL", to: "BONK" },
   { from: "SOL", to: "WIF" },
