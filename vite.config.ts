@@ -16,6 +16,17 @@ export default defineConfig({
   vite: {
     plugins: [
       {
+        name: "client-buffer-alias",
+        enforce: "pre",
+        applyToEnvironment: (env: { name: string }) => env.name === "client",
+        resolveId(source: string) {
+          if (source === "buffer") {
+            return bufferShim;
+          }
+          return null;
+        },
+      } as any,
+      {
         ...nodePolyfills({
           include: ["buffer", "process", "util", "stream", "events"],
           globals: { Buffer: true, global: true, process: true },
@@ -35,7 +46,6 @@ export default defineConfig({
     },
     resolve: {
       alias: [
-        { find: /^buffer$/, replacement: bufferShim },
         { find: /^rpc-websockets$/, replacement: rpcWebsocketsBrowser },
       ],
     },
