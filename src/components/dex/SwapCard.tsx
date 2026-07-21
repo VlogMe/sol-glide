@@ -144,69 +144,73 @@ export function SwapCard({
   };
 
   const executeSwap = async () => {
-    if (!quote) return;
+    if (!quote) {
+      toast.error("No quote available");
+      return;
+    }
+
     const provider = (window as any).phantom?.solana ?? (window as any).solana;
     if (!provider?.isPhantom || !walletAddress) {
       toast.error("Connect Phantom first");
       return;
     }
+
     setSwapping(true);
+
     try {
       const res = await swapFn({
-        data: { quoteResponse: quote, userPublicKey: walletAddress, wrapAndUnwrapSol: true },
+        data: {
+          quoteResponse: quote,
+          userPublicKey: walletAddress,
+          wrapAndUnwrapSol: true,
+        },
       });
 
+      console.log("🔍 Jupiter swap response:", res); // ← for debugging
+
       let signature: string;
+
       try {
         const swapTransaction = res?.swapTransaction;
-        if (!swapTransaction) {
-          throw new Error("Jupiter failed to return a swap transaction. Please try again.");
+        if (!swapTransaction || typeof swapTransaction !== "string") {
+          throw new Error("Jupiter did not return a valid swap transaction");
         }
 
         ensureBuffer();
 
-        const binary = atob(swapTransaction);
-        const buf = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
-
         const { VersionedTransaction } = await import("@solana/web3.js");
+        const buf = Buffer.from(swapTransaction, "base64");   // ← Best method
         const tx = VersionedTransaction.deserialize(buf);
 
         if (typeof provider.signAndSendTransaction === "function") {
-          const r = await provider.signAndSendTransaction(tx);
-          signature = r?.signature ?? r;
+          const result = await provider.signAndSendTransaction(tx);
+          signature = result?.signature ?? result;
         } else {
-          const { Connection } = await import("@solana/web3.js");
-          const rpcUrl =
-            (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
-          const connection = new Connection(rpcUrl, "confirmed");
           const signed = await provider.signTransaction(tx);
+          const { Connection } = await import("@solana/web3.js");
+          const rpcUrl = (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
+          const connection = new Connection(rpcUrl, "confirmed");
           signature = await connection.sendRawTransaction(signed.serialize(), {
             skipPreflight: false,
             maxRetries: 3,
           });
         }
-      } catch (e: any) {
-        if (e?.code === 4001) throw e;
-        console.error(e);
-        const msg = e?.message || e?.error || String(e);
-        throw new Error(msg || "Failed to prepare swap. Please try again.");
+      } catch (innerError: any) {
+        console.error("❌ Transaction preparation failed:", innerError);
+        if (innerError?.code === 4001) throw innerError;
+        throw new Error(innerError?.message || "Failed to prepare transaction");
       }
 
       toast.success(
-        <a
-          href={`https://solscan.io/tx/${signature}`}
-          target="_blank"
-          rel="noreferrer"
-          className="underline"
-        >
+        <a href={`https://solscan.io/tx/${signature}`} target="_blank" rel="noreferrer" className="underline">
           Swap sent — view on Solscan
-        </a>,
+        </a>
       );
+
       setSwapState((prev) => ({ ...prev, fromAmount: "" }));
       setQuote(null);
     } catch (e: any) {
-      console.error(e);
+      console.error("Swap failed:", e);
       if (e?.code !== 4001) {
         toast.error(friendlyError(String(e?.message || "Swap failed")));
       }
