@@ -346,23 +346,29 @@ export function SwapCard({
         )}
 
         <div className="mt-5 flex items-center gap-3">
-          <PhantomButton className="shrink-0" />
-          <button
-            type="button"
-            onClick={executeSwap}
-            disabled={!quote || swapping || loading || !walletAddress}
-            className="flex-1 bg-[linear-gradient(90deg,#9945FF_0%,#14F195_100%)] text-white font-semibold rounded-xl px-4 py-3 shadow-md hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {swapping ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> Swapping…
-              </span>
-            ) : !quote ? (
-              "Enter an amount"
-            ) : (
-              "Swap Now"
-            )}
-          </button>
+          {!walletAddress ? (
+            <PhantomButton className="w-full" />
+          ) : (
+            <>
+              <PhantomButton className="shrink-0" />
+              <button
+                type="button"
+                onClick={executeSwap}
+                disabled={!quote || swapping || loading}
+                className="flex-1 bg-[linear-gradient(90deg,#9945FF_0%,#14F195_100%)] text-white font-semibold rounded-xl px-4 py-3 shadow-md hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {swapping ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Swapping…
+                  </span>
+                ) : !quote ? (
+                  "Enter an amount"
+                ) : (
+                  "Swap Now"
+                )}
+              </button>
+            </>
+          )}
         </div>
 
         <div className="mt-4 flex items-start gap-2 text-[11px] text-muted-foreground">
