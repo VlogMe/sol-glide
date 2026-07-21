@@ -409,7 +409,7 @@ export function SwapCard({
           <button
             type="button"
             onClick={executeSwap}
-            disabled={swapping || loading || !quote || !decimalsOk}
+            disabled={swapping || loading || !quote || !decimalsOk || verifyingDecimals}
             className="w-full py-4 rounded-2xl text-lg font-bold text-white bg-[linear-gradient(90deg,#9945FF_0%,#14F195_100%)] shadow-lg hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
           >
             {swapping ? (
