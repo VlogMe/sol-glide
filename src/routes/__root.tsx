@@ -13,6 +13,15 @@ if (typeof window !== "undefined") {
 (globalThis as any).Buffer = Buffer;
 (globalThis as any).process = process;
 
+if (typeof window !== "undefined") {
+  console.log("POLYFILL CHECK", {
+    Buffer: typeof (globalThis as any).Buffer,
+    BufferFrom: typeof (globalThis as any).Buffer?.from,
+    process: typeof (globalThis as any).process,
+  });
+}
+
+
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
