@@ -249,32 +249,6 @@ export function SwapCard({
         </Popover>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-3">
-        {[
-          { from: "SOL", to: "USDC" },
-          { from: "SOL", to: "SPDD", vip: true },
-        ].map((pair) => (
-          <button
-            key={`${pair.from}-${pair.to}`}
-            type="button"
-            onClick={() => {
-              setFrom(TOKENS[pair.from]);
-              setTo(TOKENS[pair.to]);
-              setQuote(null);
-            }}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-secondary/40 px-3 py-1.5 text-xs font-medium hover:border-primary/60 hover:bg-secondary/70 transition-colors"
-          >
-            <span>{pair.from}</span>
-            <span className="text-muted-foreground">→</span>
-            <span>{pair.to}</span>
-            {pair.vip && (
-              <span className="ml-0.5 rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] text-primary">
-                VIP
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
 
       {(() => {
         const LOW_LIQ_MINTS = new Set([
