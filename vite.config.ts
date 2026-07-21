@@ -39,13 +39,20 @@ export default defineConfig({
       noExternal: ["@solana/web3.js", "rpc-websockets"],
     },
     optimizeDeps: {
-      include: ["@solana/web3.js", "rpc-websockets", "buffer/"],
+      include: [
+        "buffer",
+        "process",
+        "@solana/web3.js",
+        "rpc-websockets",
+      ],
     },
     define: {
       global: "globalThis",
     },
     resolve: {
       alias: [
+        { find: /^buffer$/, replacement: "buffer" },
+        { find: /^process$/, replacement: "process/browser" },
         { find: /^rpc-websockets$/, replacement: rpcWebsocketsBrowser },
       ],
     },
