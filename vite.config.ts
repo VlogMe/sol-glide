@@ -1,4 +1,5 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { NodeGlobalsPolyfillPlugin } from "@esbuild-plugins/node-globals-polyfill";
 import path from "node:path";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 
@@ -29,6 +30,17 @@ export default defineConfig({
     },
     optimizeDeps: {
       include: ["@solana/web3.js", "rpc-websockets", "buffer"],
+      esbuildOptions: {
+        define: {
+          global: "globalThis",
+        },
+        plugins: [
+          NodeGlobalsPolyfillPlugin({
+            buffer: true,
+            process: true,
+          }),
+        ],
+      },
     },
     define: {
       global: "globalThis",
