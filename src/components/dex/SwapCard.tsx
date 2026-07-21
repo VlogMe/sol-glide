@@ -164,6 +164,7 @@ export function SwapCard({
     setSwapping(true);
     try {
       console.log("Passing quote to server", quote);
+      console.log("Calling swapFn with", { quoteResponse: quote });
       const res = await swapFn({
         data: {
           quoteResponse: quote,
@@ -171,6 +172,7 @@ export function SwapCard({
           wrapAndUnwrapSol: true,
         },
       });
+      console.log("swapFn response", res);
 
       let signature: string;
       try {
