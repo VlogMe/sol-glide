@@ -138,7 +138,7 @@ export function SwapCard({
     return () => {
       if (debounce.current) clearTimeout(debounce.current);
     };
-  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals, decimalsOk]);
+  }, [amount, from.mint, to.mint, slippageBps, quoteFn, from.decimals, decimalsOk, verifyingDecimals]);
 
   // Fully reset swap UI when the wallet disconnects: clear amount, quote,
   // route info, loading flag, and any in-flight debounce.
