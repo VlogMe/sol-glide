@@ -305,7 +305,8 @@ export function SwapCard({
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
               placeholder="0.00"
-              className="bg-transparent flex-1 text-3xl font-semibold outline-none min-w-0"
+              disabled={!decimalsOk}
+              className="bg-transparent flex-1 text-3xl font-semibold outline-none min-w-0 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <TokenSelect value={from} onChange={setFrom} />
           </div>
