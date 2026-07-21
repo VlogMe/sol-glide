@@ -150,7 +150,7 @@ export function SwapCard({
     }
 
     const provider = (window as any).phantom?.solana ?? (window as any).solana;
-    if (!provider?.isPhantom || !walletAddress) {
+    if (!provider || !walletAddress) {
       toast.error("Connect Phantom first");
       return;
     }
@@ -166,51 +166,46 @@ export function SwapCard({
         },
       });
 
-      console.log("🔍 Jupiter swap response:", res); // ← for debugging
+      console.log("Jupiter swap response:", res);
+
+      const swapTransaction = res?.swapTransaction;
+      if (!swapTransaction || typeof swapTransaction !== "string") {
+        throw new Error("Jupiter did not return a valid swap transaction");
+      }
+
+      ensureBuffer();
+
+      const { VersionedTransaction, Connection } = await import("@solana/web3.js");
+      const buf = Buffer.from(swapTransaction, "base64");
+      const tx = VersionedTransaction.deserialize(buf);
 
       let signature: string;
+      const rpcUrl = (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
+      const connection = new Connection(rpcUrl, "confirmed");
 
-      try {
-        const swapTransaction = res?.swapTransaction;
-        if (!swapTransaction || typeof swapTransaction !== "string") {
-          throw new Error("Jupiter did not return a valid swap transaction");
-        }
-
-        ensureBuffer();
-
-        const { VersionedTransaction } = await import("@solana/web3.js");
-        const buf = Buffer.from(swapTransaction, "base64");   // ← Best method
-        const tx = VersionedTransaction.deserialize(buf);
-
-        if (typeof provider.signAndSendTransaction === "function") {
-          const result = await provider.signAndSendTransaction(tx);
-          signature = result?.signature ?? result;
-        } else {
-          const signed = await provider.signTransaction(tx);
-          const { Connection } = await import("@solana/web3.js");
-          const rpcUrl = (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
-          const connection = new Connection(rpcUrl, "confirmed");
-          signature = await connection.sendRawTransaction(signed.serialize(), {
-            skipPreflight: false,
-            maxRetries: 3,
-          });
-        }
-      } catch (innerError: any) {
-        console.error("❌ Transaction preparation failed:", innerError);
-        if (innerError?.code === 4001) throw innerError;
-        throw new Error(innerError?.message || "Failed to prepare transaction");
+      if (typeof provider.signAndSendTransaction === "function") {
+        const result = await provider.signAndSendTransaction(tx);
+        signature = result?.signature ?? result;
+      } else {
+        const signed = await provider.signTransaction(tx);
+        signature = await connection.sendRawTransaction(signed.serialize(), {
+          skipPreflight: false,
+          maxRetries: 3,
+        });
       }
+
+      await connection.confirmTransaction(signature, "confirmed");
 
       toast.success(
         <a href={`https://solscan.io/tx/${signature}`} target="_blank" rel="noreferrer" className="underline">
-          Swap sent — view on Solscan
+          Swap confirmed — view on Solscan
         </a>
       );
 
       setSwapState((prev) => ({ ...prev, fromAmount: "" }));
       setQuote(null);
     } catch (e: any) {
-      console.error("Swap failed:", e);
+      console.error("Swap error:", e);
       if (e?.code !== 4001) {
         toast.error(friendlyError(String(e?.message || "Swap failed")));
       }
@@ -218,6 +213,7 @@ export function SwapCard({
       setSwapping(false);
     }
   };
+
 
   const lowLiquidity = to.symbol === "SPDD" || priceImpact > 3;
 

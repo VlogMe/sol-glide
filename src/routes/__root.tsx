@@ -1,7 +1,12 @@
 import "@/lib/buffer-polyfill";
 import { ensureBuffer } from "@/lib/buffer-polyfill";
+import { Buffer } from "buffer";
 
 ensureBuffer();
+
+if (typeof window !== "undefined") {
+  (window as any).Buffer = Buffer;
+}
 
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
