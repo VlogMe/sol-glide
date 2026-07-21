@@ -1,27 +1,20 @@
-// Polyfill Buffer + process for Solana / rpc-websockets browser builds.
-// The rpc-websockets browser ESM references Buffer.from at module init,
-// which throws "Cannot read properties of undefined (reading 'from')"
-// when Buffer isn't on the global object.
 import { Buffer } from "buffer";
-import process from "process";
 
-let applied = false;
+(globalThis as any).Buffer = Buffer;
+
+if (typeof window !== "undefined") {
+  (window as any).Buffer = Buffer;
+}
 
 export function ensureBuffer(): true {
-  if (applied) return true;
-  if (typeof globalThis !== "undefined") {
-    const g = globalThis as unknown as {
-      Buffer?: typeof Buffer;
-      process?: typeof process;
-      global?: unknown;
-    };
-    if (!g.Buffer || typeof g.Buffer.from !== "function") g.Buffer = Buffer;
-    if (!g.process) g.process = process;
-    if (!g.global) g.global = globalThis;
+  (globalThis as any).Buffer = Buffer;
+  if (typeof window !== "undefined") {
+    (window as any).Buffer = Buffer;
   }
-  applied = true;
   return true;
 }
 
-// Run once at module load for legacy side-effect imports.
-ensureBuffer();
+console.log("BUFFER POLYFILL LOADED", {
+  Buffer: typeof (globalThis as any).Buffer,
+  BufferFrom: typeof (globalThis as any).Buffer?.from,
+});
