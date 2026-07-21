@@ -153,38 +153,39 @@ export function SwapCard({
         },
       });
       const swapTransaction = swapResult?.swapTransaction;
-      if (!swapTransaction) {
+      if (!swapTransaction || typeof swapTransaction !== "string") {
         throw new Error("Jupiter did not return a valid swap transaction. Please try again.");
       }
 
-      // Ensure Solana browser dependencies have Buffer/global before web3.js initializes.
+      // Ensure Buffer/global exist before loading Solana web3.
       await import("@/lib/buffer-polyfill");
-      const web3 = await import("@solana/web3.js");
-      const VersionedTransaction = (web3 as any).VersionedTransaction;
-      const Connection = (web3 as any).Connection;
-      if (!VersionedTransaction || typeof VersionedTransaction.deserialize !== "function") {
-        throw new Error("Failed to load Solana transaction support. Please refresh and try again.");
-      }
-
-      const tx = VersionedTransaction.deserialize(
-        new Uint8Array(atob(swapTransaction).split("").map((c) => c.charCodeAt(0))),
-      );
-
-      const rpcUrl =
-        (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
-      const connection = new Connection(rpcUrl, "confirmed");
 
       let signature: string;
-      if (typeof provider.signAndSendTransaction === "function") {
-        const res = await provider.signAndSendTransaction(tx);
-        signature = res?.signature ?? res;
-      } else {
-        const signed = await provider.signTransaction(tx);
-        signature = await connection.sendRawTransaction(signed.serialize(), {
-          skipPreflight: false,
-          maxRetries: 3,
-        });
+      try {
+        const { VersionedTransaction, Connection } = await import("@solana/web3.js");
+        const buf = Uint8Array.from(atob(swapTransaction), (c) => c.charCodeAt(0));
+        const tx = VersionedTransaction.deserialize(buf);
+
+        const rpcUrl =
+          (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
+        const connection = new Connection(rpcUrl, "confirmed");
+
+        if (typeof provider.signAndSendTransaction === "function") {
+          const res = await provider.signAndSendTransaction(tx);
+          signature = res?.signature ?? res;
+        } else {
+          const signed = await provider.signTransaction(tx);
+          signature = await connection.sendRawTransaction(signed.serialize(), {
+            skipPreflight: false,
+            maxRetries: 3,
+          });
+        }
+      } catch (e: any) {
+        if (e?.code === 4001) throw e;
+        console.error(e);
+        throw new Error("Failed to prepare swap. Please try again.");
       }
+
       toast.success(
         <a
           href={`https://solscan.io/tx/${signature}`}
@@ -206,6 +207,7 @@ export function SwapCard({
       setSwapping(false);
     }
   };
+
 
   return (
     <div className="glass rounded-3xl p-5 md:p-6 shadow-[var(--shadow-card)] w-full max-w-md mx-auto">
