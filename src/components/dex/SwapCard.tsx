@@ -172,19 +172,29 @@ export function SwapCard({
 
       let signature: string;
       try {
-        const swapTransaction = res?.swapTransaction;
-        if (!swapTransaction) {
-          throw new Error("Jupiter failed to return a swap transaction. Please try again.");
+        if (!res?.swapTransaction) {
+          throw new Error("No swap transaction from Jupiter");
         }
+        const swapTransaction: string = res.swapTransaction;
 
+        // Ensure Buffer/process globals exist BEFORE loading web3.js.
+        ensureBuffer();
         await import("@/lib/buffer-polyfill");
+        const { Buffer } = await import("buffer");
+        (globalThis as any).Buffer = (globalThis as any).Buffer || Buffer;
 
-        const { VersionedTransaction } = await import("@solana/web3.js");
+        const { VersionedTransaction, Connection } = await import("@solana/web3.js");
 
-        const buf = Uint8Array.from(atob(swapTransaction), (c) => c.charCodeAt(0));
-        const tx = VersionedTransaction.deserialize(buf);
+        const buf = Buffer.from(swapTransaction, "base64");
 
-        const { Connection } = await import("@solana/web3.js");
+        let tx;
+        try {
+          tx = VersionedTransaction.deserialize(buf);
+        } catch (err: any) {
+          throw new Error(
+            "Failed to deserialize swap transaction: " + (err?.message || String(err)),
+          );
+        }
 
         const rpcUrl =
           (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
@@ -206,6 +216,7 @@ export function SwapCard({
         const msg = e?.message || e?.error || String(e);
         throw new Error(msg || "Failed to prepare swap. Please try again.");
       }
+
 
 
       toast.success(
