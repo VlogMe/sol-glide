@@ -145,25 +145,17 @@ export function SwapCard({
     }
     setSwapping(true);
     try {
-      const swapResult = await swapFn({
+      const res = await swapFn({
         data: {
           quoteResponse: quote,
           userPublicKey: walletAddress,
           wrapAndUnwrapSol: true,
         },
       });
-      const swapTransaction = swapResult?.swapTransaction;
-      if (
-        !swapTransaction ||
-        typeof swapTransaction !== "string" ||
-        swapTransaction.trim().length === 0
-      ) {
+
+      const swapTransaction = res?.swapTransaction;
+      if (!swapTransaction || typeof swapTransaction !== "string") {
         throw new Error("Jupiter did not return a valid swap transaction. Please try again.");
-      }
-      // Base64 sanity check: must match base64 alphabet and length % 4 === 0.
-      const b64 = swapTransaction.trim();
-      if (!/^[A-Za-z0-9+/]+={0,2}$/.test(b64) || b64.length % 4 !== 0) {
-        throw new Error("Received malformed swap transaction from Jupiter. Please try again.");
       }
 
       // Ensure Buffer/global exist before loading Solana web3.
@@ -172,16 +164,8 @@ export function SwapCard({
       let signature: string;
       try {
         const { VersionedTransaction, Connection } = await import("@solana/web3.js");
-        let buf: Uint8Array;
-        try {
-          const binary = atob(b64);
-          buf = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-        } catch {
-          throw new Error("Failed to decode swap transaction. Please try again.");
-        }
-        if (!(buf instanceof Uint8Array) || buf.length === 0) {
-          throw new Error("Decoded swap transaction is empty. Please try again.");
-        }
+
+        const buf = Uint8Array.from(atob(swapTransaction), (c) => c.charCodeAt(0));
         const tx = VersionedTransaction.deserialize(buf);
 
         const rpcUrl =
@@ -189,8 +173,8 @@ export function SwapCard({
         const connection = new Connection(rpcUrl, "confirmed");
 
         if (typeof provider.signAndSendTransaction === "function") {
-          const res = await provider.signAndSendTransaction(tx);
-          signature = res?.signature ?? res;
+          const r = await provider.signAndSendTransaction(tx);
+          signature = r?.signature ?? r;
         } else {
           const signed = await provider.signTransaction(tx);
           signature = await connection.sendRawTransaction(signed.serialize(), {
@@ -201,11 +185,10 @@ export function SwapCard({
       } catch (e: any) {
         if (e?.code === 4001) throw e;
         console.error(e);
-        // Preserve the real underlying message (Jupiter simulation failure,
-        // insufficient funds, slippage exceeded, etc.) instead of masking it.
         const msg = e?.message || e?.error || String(e);
         throw new Error(msg || "Failed to prepare swap. Please try again.");
       }
+
 
       toast.success(
         <a
