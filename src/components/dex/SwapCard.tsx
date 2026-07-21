@@ -153,8 +153,17 @@ export function SwapCard({
         },
       });
       const swapTransaction = swapResult?.swapTransaction;
-      if (!swapTransaction || typeof swapTransaction !== "string") {
+      if (
+        !swapTransaction ||
+        typeof swapTransaction !== "string" ||
+        swapTransaction.trim().length === 0
+      ) {
         throw new Error("Jupiter did not return a valid swap transaction. Please try again.");
+      }
+      // Base64 sanity check: must match base64 alphabet and length % 4 === 0.
+      const b64 = swapTransaction.trim();
+      if (!/^[A-Za-z0-9+/]+={0,2}$/.test(b64) || b64.length % 4 !== 0) {
+        throw new Error("Received malformed swap transaction from Jupiter. Please try again.");
       }
 
       // Ensure Buffer/global exist before loading Solana web3.
@@ -163,7 +172,16 @@ export function SwapCard({
       let signature: string;
       try {
         const { VersionedTransaction, Connection } = await import("@solana/web3.js");
-        const buf = Uint8Array.from(atob(swapTransaction), (c) => c.charCodeAt(0));
+        let buf: Uint8Array;
+        try {
+          const binary = atob(b64);
+          buf = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+        } catch {
+          throw new Error("Failed to decode swap transaction. Please try again.");
+        }
+        if (!(buf instanceof Uint8Array) || buf.length === 0) {
+          throw new Error("Decoded swap transaction is empty. Please try again.");
+        }
         const tx = VersionedTransaction.deserialize(buf);
 
         const rpcUrl =
