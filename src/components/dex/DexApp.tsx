@@ -42,11 +42,11 @@ function DexLayout({
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             <div>
               <h1 className="mt-5 text-5xl md:text-6xl font-bold leading-[1.05] tracking-tight">
-                Fast Non-Custodial <span className="gradient-text">Solana Swaps</span>
+                Fast <span className="gradient-text">Solana Swaps</span>
               </h1>
               <p className="mt-5 text-lg text-muted-foreground max-w-lg">
-                Get the best prices by routing across all major Solana DEXes. Instant, secure, and
-                non-custodial swaps.
+                Get the best prices by routing across all major Solana DEXes. Instant, secure
+                swaps.
               </p>
               <div className="mt-6 flex flex-wrap gap-6 text-sm">
                 <Bullet color="red">0.5% flat platform fee</Bullet>
