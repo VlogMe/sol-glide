@@ -276,20 +276,20 @@ export const resolveTokenByMint = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     rateLimit("resolve");
     const headers = { accept: "application/json" };
+    const mint = data.mint;
 
-    // 1) Jupiter Lite token metadata (current endpoint)
+    // 1. Jupiter Lite token metadata
     try {
-      const r = await fetch(`https://lite-api.jup.ag/tokens/v1/token/${data.mint}`, { headers });
+      const r = await fetch(`https://lite-api.jup.ag/tokens/v1/token/${mint}`, { headers });
       if (r.ok) {
         const j: any = await r.json();
-        const addr = j?.address || j?.mint;
-        if (addr) {
+        if (j?.address) {
           return {
-            symbol: j.symbol || data.mint.slice(0, 4),
+            symbol: j.symbol || mint.slice(0, 4),
             name: j.name || "Unknown token",
-            mint: addr,
+            mint: j.address,
             decimals: Number(j.decimals ?? 0),
-            logoURI: j.logoURI || j.logo_uri || "",
+            logoURI: j.logoURI || "",
             warn: false,
             source: "jupiter" as const,
           };
@@ -297,20 +297,17 @@ export const resolveTokenByMint = createServerFn({ method: "POST" })
       }
     } catch {}
 
-    // 2) Jupiter Lite search fallback
+    // 2. Jupiter search fallback
     try {
-      const r = await fetch(
-        `https://lite-api.jup.ag/tokens/v1/search?query=${encodeURIComponent(data.mint)}`,
-        { headers },
-      );
+      const r = await fetch(`https://lite-api.jup.ag/tokens/v1/search?query=${encodeURIComponent(mint)}`, { headers });
       if (r.ok) {
         const j: any = await r.json();
-        const list: any[] = Array.isArray(j) ? j : (j?.tokens ?? j?.data ?? []);
-        const hit = list.find((t) => (t?.address || t?.mint) === data.mint) || list[0];
-        const addr = hit?.address || hit?.mint;
-        if (hit && addr === data.mint) {
+        const list = Array.isArray(j) ? j : (j?.tokens ?? j?.data ?? []);
+        const hit = list.find((t: any) => (t?.address || t?.mint) === mint) || list[0];
+        if (hit && (hit.address || hit.mint) === mint) {
+          const addr = hit.address || hit.mint;
           return {
-            symbol: hit.symbol || data.mint.slice(0, 4),
+            symbol: hit.symbol || mint.slice(0, 4),
             name: hit.name || "Unknown token",
             mint: addr,
             decimals: Number(hit.decimals ?? 0),
@@ -322,7 +319,7 @@ export const resolveTokenByMint = createServerFn({ method: "POST" })
       }
     } catch {}
 
-    // 3) RPC fallback — decimals only, treat as untrusted / low-liquidity
+    // 3. RPC fallback (decimals only)
     try {
       const res = await fetch(RPC(), {
         method: "POST",
@@ -331,17 +328,17 @@ export const resolveTokenByMint = createServerFn({ method: "POST" })
           jsonrpc: "2.0",
           id: 1,
           method: "getTokenSupply",
-          params: [data.mint],
+          params: [mint],
         }),
       });
-      const j: any = await res.json();
-      const decimals = j?.result?.value?.decimals;
-      if (typeof decimals === "number") {
+      const json = await res.json();
+      const supply = json?.result?.value;
+      if (supply) {
         return {
-          symbol: data.mint.slice(0, 4).toUpperCase(),
-          name: `Custom ${data.mint.slice(0, 4)}…${data.mint.slice(-4)}`,
-          mint: data.mint,
-          decimals,
+          symbol: mint.slice(0, 4),
+          name: "Unknown Token",
+          mint,
+          decimals: supply.decimals,
           logoURI: "",
           warn: true,
           source: "rpc" as const,
