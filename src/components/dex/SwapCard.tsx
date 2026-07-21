@@ -165,14 +165,17 @@ export function SwapCard({
           wrapAndUnwrapSol: true,
         },
       });
+      console.log("STEP 1 - after Jupiter response", res);
 
       console.log("Jupiter swap response:", res);
 
+      console.log("STEP 2 - before transaction extraction");
       const swapTransaction = res?.swapTransaction;
       if (!swapTransaction || typeof swapTransaction !== "string") {
         throw new Error("Jupiter did not return a valid swap transaction");
       }
 
+      console.log("STEP 3 - before web3 import");
       const { VersionedTransaction, Connection } = await import("@solana/web3.js");
       console.log("Before decode", {
         Buffer: typeof Buffer,
@@ -183,8 +186,10 @@ export function SwapCard({
       });
       const txBuffer = Buffer.from(swapTransaction, "base64");
       console.log("Decoded buffer", txBuffer.length);
+      console.log("STEP 4 - before deserialize");
       const transaction = VersionedTransaction.deserialize(txBuffer);
-      console.log("Transaction decoded", transaction);
+      console.log("STEP 5 - after deserialize", transaction);
+
 
       let signature: string;
       const rpcUrl = (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
