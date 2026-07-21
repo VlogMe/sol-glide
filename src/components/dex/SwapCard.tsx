@@ -176,34 +176,24 @@ export function SwapCard({
         throw new Error("Jupiter did not return a valid swap transaction");
       }
 
-      console.log("STEP 3 - before web3 import");
       console.log("BEFORE WEB3 IMPORT");
-      let VersionedTransaction: any, Connection: any;
+
       try {
         const web3 = await import("@solana/web3.js");
-        console.log("WEB3 IMPORT SUCCESS", {
-          keys: Object.keys(web3),
-          versionedTransaction: typeof web3.VersionedTransaction,
-          connection: typeof web3.Connection,
+
+        console.log("WEB3 LOADED SUCCESSFULLY", {
+          exports: Object.keys(web3),
+          VersionedTransaction: typeof web3.VersionedTransaction,
+          Connection: typeof web3.Connection,
         });
-        VersionedTransaction = web3.VersionedTransaction;
-        Connection = web3.Connection;
-      } catch (error) {
-        console.error("WEB3 IMPORT FAILED", error);
+      } catch (error: any) {
+        console.error("WEB3 LOAD ERROR FULL", error);
+        console.error("WEB3 LOAD ERROR STACK", error?.stack);
         throw error;
       }
-      console.log("Before decode", {
-        Buffer: typeof Buffer,
-        BufferFrom: typeof Buffer?.from,
-        globalBuffer: typeof globalThis.Buffer,
-        globalBufferFrom: typeof globalThis.Buffer?.from,
-        txLength: swapTransaction?.length,
-      });
-      const txBuffer = Buffer.from(swapTransaction, "base64");
-      console.log("Decoded buffer", txBuffer.length);
-      console.log("STEP 4 - before deserialize");
-      const transaction = VersionedTransaction.deserialize(txBuffer);
-      console.log("STEP 5 - after deserialize", transaction);
+
+      return;
+
 
 
       let signature: string;
