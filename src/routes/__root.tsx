@@ -1,4 +1,4 @@
-import "@/lib/buffer-polyfill";
+import { setupBuffer } from "@/lib/buffer-polyfill";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -119,6 +119,10 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    setupBuffer();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
