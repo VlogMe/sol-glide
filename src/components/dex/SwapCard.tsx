@@ -152,6 +152,10 @@ export function SwapCard({
 
   const executeSwap = async () => {
     if (!quote) return;
+    if (!decimalsOk) {
+      toast.error("Invalid token decimals — pick a different token.");
+      return;
+    }
     const provider = (window as any).phantom?.solana ?? (window as any).solana;
     if (!provider?.isPhantom || !walletAddress) {
       toast.error("Connect Phantom first");
