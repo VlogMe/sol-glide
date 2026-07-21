@@ -275,18 +275,21 @@ export const resolveTokenByMint = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ mint: mint }).parse(d))
   .handler(async ({ data }) => {
     rateLimit("resolve");
-    // 1) Jupiter token metadata (covers most listed tokens)
+    const headers = { accept: "application/json" };
+
+    // 1) Jupiter Lite token metadata (current endpoint)
     try {
-      const r = await fetch(`https://tokens.jup.ag/token/${data.mint}`);
+      const r = await fetch(`https://lite-api.jup.ag/tokens/v1/token/${data.mint}`, { headers });
       if (r.ok) {
         const j: any = await r.json();
-        if (j && j.address) {
+        const addr = j?.address || j?.mint;
+        if (addr) {
           return {
             symbol: j.symbol || data.mint.slice(0, 4),
             name: j.name || "Unknown token",
-            mint: j.address,
+            mint: addr,
             decimals: Number(j.decimals ?? 0),
-            logoURI: j.logoURI || "",
+            logoURI: j.logoURI || j.logo_uri || "",
             warn: false,
             source: "jupiter" as const,
           };
@@ -294,7 +297,32 @@ export const resolveTokenByMint = createServerFn({ method: "POST" })
       }
     } catch {}
 
-    // 2) RPC fallback — decimals only, treat as untrusted / low-liquidity
+    // 2) Jupiter Lite search fallback
+    try {
+      const r = await fetch(
+        `https://lite-api.jup.ag/tokens/v1/search?query=${encodeURIComponent(data.mint)}`,
+        { headers },
+      );
+      if (r.ok) {
+        const j: any = await r.json();
+        const list: any[] = Array.isArray(j) ? j : (j?.tokens ?? j?.data ?? []);
+        const hit = list.find((t) => (t?.address || t?.mint) === data.mint) || list[0];
+        const addr = hit?.address || hit?.mint;
+        if (hit && addr === data.mint) {
+          return {
+            symbol: hit.symbol || data.mint.slice(0, 4),
+            name: hit.name || "Unknown token",
+            mint: addr,
+            decimals: Number(hit.decimals ?? 0),
+            logoURI: hit.logoURI || hit.logo_uri || "",
+            warn: false,
+            source: "jupiter" as const,
+          };
+        }
+      }
+    } catch {}
+
+    // 3) RPC fallback — decimals only, treat as untrusted / low-liquidity
     try {
       const res = await fetch(RPC(), {
         method: "POST",
