@@ -201,10 +201,6 @@ export function SwapCard({
 
   const executeSwap = async () => {
     if (!quote) return;
-    if (verifyingDecimals) {
-      toast.error("Verifying token decimals — try again in a moment.");
-      return;
-    }
     if (!decimalsOk) {
       toast.error("Invalid token decimals — pick a different token.");
       return;
