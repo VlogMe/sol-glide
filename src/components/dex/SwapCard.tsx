@@ -1,3 +1,5 @@
+import "@/lib/buffer-polyfill";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownUp, Loader2, Settings2, Info } from "lucide-react";
 import { toast } from "sonner";
@@ -157,9 +159,6 @@ export function SwapCard({
       if (!swapTransaction || typeof swapTransaction !== "string") {
         throw new Error("Jupiter did not return a valid swap transaction. Please try again.");
       }
-
-      // Ensure Buffer/global exist before loading Solana web3.
-      await import("@/lib/buffer-polyfill");
 
       let signature: string;
       try {
