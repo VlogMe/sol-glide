@@ -39,12 +39,15 @@ export function SwapCard(_props: { initialFrom?: string; initialTo?: string } = 
     loadTerminalScript()
       .then(() => {
         if (cancelled || !window.Jupiter) return;
+        const rpcUrl =
+          (import.meta as any).env?.VITE_RPC_URL ||
+          "https://api.mainnet-beta.solana.com";
+
         window.Jupiter.init({
           displayMode: "integrated",
           integratedTargetId: "jupiter-terminal",
-          endpoint:
-            (import.meta as any).env?.VITE_RPC_URL ||
-            "https://api.mainnet-beta.solana.com",
+          endpoint: rpcUrl,
+          rpcUrl: rpcUrl,
           formProps: {
             initialInputMint: "So11111111111111111111111111111111111111112",
             initialOutputMint:
