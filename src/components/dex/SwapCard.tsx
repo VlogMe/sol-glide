@@ -114,7 +114,7 @@ export function SwapCard({
     if (debounce.current) clearTimeout(debounce.current);
     const num = Number(amount);
     if (!amount || !isFinite(num) || num <= 0) return;
-    if (!decimalsOk) return;
+    if (!decimalsOk || verifyingDecimals) return;
     debounce.current = setTimeout(async () => {
       try {
         setLoading(true);
