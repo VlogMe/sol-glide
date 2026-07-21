@@ -20,3 +20,13 @@ console.log("BUFFER SAFE CHECK", {
   BufferType: typeof globalThis.Buffer,
   BufferFrom: typeof globalThis.Buffer?.from
 });
+
+export function ensureBuffer(): true {
+  if (Buffer && typeof Buffer.from === "function") {
+    globalThis.Buffer = Buffer;
+    if (typeof window !== "undefined") {
+      window.Buffer = Buffer;
+    }
+  }
+  return true;
+}
