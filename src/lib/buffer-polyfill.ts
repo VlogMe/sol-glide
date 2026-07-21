@@ -15,9 +15,4 @@ export function setupBuffer() {
   });
 }
 
-export function ensureBuffer(): true {
-  setupBuffer();
-  return true;
-}
-
 setupBuffer();
