@@ -7,6 +7,8 @@ const rpcWebsocketsBrowser = path.resolve(
   "node_modules/rpc-websockets/dist/index.browser.mjs",
 );
 
+const bufferShim = path.resolve(process.cwd(), "src/lib/buffer-shim.ts");
+
 export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
@@ -33,7 +35,7 @@ export default defineConfig({
     },
     resolve: {
       alias: [
-        { find: /^buffer$/, replacement: "buffer/" },
+        { find: /^buffer$/, replacement: bufferShim },
         { find: /^rpc-websockets$/, replacement: rpcWebsocketsBrowser },
       ],
     },
