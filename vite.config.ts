@@ -7,26 +7,12 @@ const rpcWebsocketsBrowser = path.resolve(
   "node_modules/rpc-websockets/dist/index.browser.mjs",
 );
 
-const bufferShim = path.resolve(process.cwd(), "src/lib/buffer-shim.ts");
-const bufferPackage = path.resolve(process.cwd(), "node_modules/buffer/index.js");
-
 export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
   },
   vite: {
     plugins: [
-      {
-        name: "client-buffer-alias",
-        enforce: "pre",
-        resolveId(source: string) {
-          if (source === "buffer" || source === "node:buffer") {
-            return bufferShim;
-          }
-          if (source === "buffer/") return bufferPackage;
-          return null;
-        },
-      } as any,
       {
         ...nodePolyfills({
           include: ["buffer", "process", "util", "stream", "events"],
@@ -52,9 +38,6 @@ export default defineConfig({
     },
     resolve: {
       alias: [
-        { find: /^buffer$/, replacement: bufferShim },
-        { find: /^node:buffer$/, replacement: bufferShim },
-        { find: /^buffer\/$/, replacement: bufferPackage },
         { find: /^process$/, replacement: "process/browser" },
         { find: /^rpc-websockets$/, replacement: rpcWebsocketsBrowser },
       ],
