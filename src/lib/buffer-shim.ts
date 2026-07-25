@@ -1,11 +1,28 @@
 // SSR-safe Buffer shim.
-// - On the server: Node provides `Buffer` as a global.
-// - On the client: vite-plugin-node-polyfills injects `Buffer` as a global.
-// Either way we can just read it off `globalThis` without importing the CJS
-// `buffer` package (which breaks in Vite's SSR ESM module runner because it
-// uses `require`).
+// Reads globalThis.Buffer lazily on every access/call instead of caching
+// it once at import time, so it always sees the real polyfilled Buffer
+// no matter what order modules are evaluated in.
 
-const BufferImpl: any = (globalThis as any).Buffer;
+function getRealBuffer(): any {
+  const real = (globalThis as any).Buffer;
+  if (!real || typeof real.from !== "function") {
+    throw new Error("Buffer polyfill has not initialized yet.");
+  }
+  return real;
+}
 
-export const Buffer = BufferImpl;
-export default { Buffer: BufferImpl };
+export const Buffer: any = new Proxy(function () {} as any, {
+  get(_target, prop) {
+    return getRealBuffer()[prop];
+  },
+  construct(_target, args) {
+    const real = getRealBuffer();
+    return new real(...args);
+  },
+  apply(_target, _thisArg, args) {
+    const real = getRealBuffer();
+    return real(...args);
+  },
+});
+
+export default { Buffer };
