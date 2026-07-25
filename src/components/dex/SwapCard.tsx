@@ -11,7 +11,7 @@ import { getJupiterQuote, getJupiterSwap } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import { PhantomButton, WALLET_DISCONNECT_EVENT, WALLET_CONNECT_EVENT } from "./PhantomButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Buffer } from "buffer";
+import { logSwap } from "@/lib/jupiter.functions";
 
 const NORMAL_FEE_BPS = 50;
 const PLATFORM_FEE_WALLET = "8FsSKh1dhgPvKTmnKvo9VJwshD3gqq7AbNeqUXaWrPp2";
