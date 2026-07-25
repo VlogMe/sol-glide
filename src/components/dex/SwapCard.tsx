@@ -11,7 +11,7 @@ import { getJupiterQuote, getJupiterSwap } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import { PhantomButton, WALLET_DISCONNECT_EVENT, WALLET_CONNECT_EVENT } from "./PhantomButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Buffer } from "buffer";
+import { logSwap } from "@/lib/jupiter.functions";
 
 const NORMAL_FEE_BPS = 50;
 const PLATFORM_FEE_WALLET = "8FsSKh1dhgPvKTmnKvo9VJwshD3gqq7AbNeqUXaWrPp2";
@@ -64,6 +64,7 @@ export function SwapCard({
 
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
+  const logSwapFn = useServerFn(logSwap);
   const feeBps = NORMAL_FEE_BPS;
 
   const { from, to, fromAmount } = swapState;
@@ -176,53 +177,64 @@ export function SwapCard({
         throw new Error("Jupiter did not return a valid swap transaction");
       }
 
-      console.log("BEFORE WEB3 IMPORT");
+      const web3 = await import("@solana/web3.js");
+      const { VersionedTransaction, Connection } = web3;
 
-      try {
-        const web3 = await import("@solana/web3.js");
+      const B: any = (globalThis as any).Buffer;
+      if (!B?.from) throw new Error("Buffer polyfill missing");
+      const txBytes = new Uint8Array(B.from(swapTransaction, "base64"));
+      const tx = VersionedTransaction.deserialize(txBytes);
 
-        console.log("WEB3 LOADED SUCCESSFULLY", {
-          exports: Object.keys(web3),
-          VersionedTransaction: typeof web3.VersionedTransaction,
-          Connection: typeof web3.Connection,
-        });
-        console.log("WEB3 VERSION LOAD SUCCESS");
-      } catch (error: any) {
-        console.error("WEB3 LOAD ERROR FULL", error);
-        console.error("WEB3 LOAD ERROR STACK", error?.stack);
-        throw error;
-      }
-
-      return;
-
-      const Connection: any = null, transaction: any = null;
-      void Connection; void transaction;
-
-
-
-
-
-      let signature: string;
-      const rpcUrl = (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
+      const rpcUrl =
+        (import.meta as any).env?.VITE_RPC_URL || "https://api.mainnet-beta.solana.com";
       const connection = new Connection(rpcUrl, "confirmed");
 
+      let signature: string;
       if (typeof provider.signAndSendTransaction === "function") {
-        const result = await provider.signAndSendTransaction(transaction);
+        const result = await provider.signAndSendTransaction(tx);
         signature = result?.signature ?? result;
       } else {
-        const signed = await provider.signTransaction(transaction);
+        const signed = await provider.signTransaction(tx);
         signature = await connection.sendRawTransaction(signed.serialize(), {
           skipPreflight: false,
           maxRetries: 3,
         });
       }
 
-      await connection.confirmTransaction(signature, "confirmed");
+      const lastValidBlockHeight = res?.lastValidBlockHeight;
+      const blockhash = tx.message.recentBlockhash;
+      if (lastValidBlockHeight && blockhash) {
+        await connection.confirmTransaction(
+          { signature, blockhash, lastValidBlockHeight },
+          "confirmed",
+        );
+      } else {
+        await connection.confirmTransaction(signature, "confirmed");
+      }
+
+      try {
+        await logSwapFn({
+          data: {
+            signature,
+            inputMint: from.mint,
+            outputMint: to.mint,
+            inAmount: String(quote.inAmount ?? ""),
+            outAmount: String(quote.outAmount ?? ""),
+          },
+        });
+      } catch (err) {
+        console.warn("logSwap failed", err);
+      }
 
       toast.success(
-        <a href={`https://solscan.io/tx/${signature}`} target="_blank" rel="noreferrer" className="underline">
+        <a
+          href={`https://solscan.io/tx/${signature}`}
+          target="_blank"
+          rel="noreferrer"
+          className="underline"
+        >
           Swap confirmed — view on Solscan
-        </a>
+        </a>,
       );
 
       setSwapState((prev) => ({ ...prev, fromAmount: "" }));
