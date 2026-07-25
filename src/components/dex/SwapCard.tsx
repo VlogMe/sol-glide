@@ -64,6 +64,7 @@ export function SwapCard({
 
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
+  const logSwapFn = useServerFn(logSwap);
   const feeBps = NORMAL_FEE_BPS;
 
   const { from, to, fromAmount } = swapState;
