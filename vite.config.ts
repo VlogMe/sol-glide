@@ -32,6 +32,12 @@ export default defineConfig({
         "@solana/web3.js",
         "rpc-websockets",
       ],
+      esbuildOptions: {
+        inject: [path.resolve(process.cwd(), "src/lib/global-buffer-shim.ts")],
+        define: {
+          global: "globalThis",
+        },
+      },
     },
     define: {
       global: "globalThis",
