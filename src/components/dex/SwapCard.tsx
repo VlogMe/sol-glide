@@ -177,7 +177,7 @@ export function SwapCard({
         throw new Error("Jupiter did not return a valid swap transaction");
       }
 
-      const web3 = await import("@solana/web3.js");
+      const web3 = await import("@solana/web3.js"); // force-rebuild-marker-2
       const { VersionedTransaction, Connection } = web3;
 
       const B: any = (globalThis as any).Buffer;
