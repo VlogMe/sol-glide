@@ -26,6 +26,7 @@ export default defineConfig({
       noExternal: ["@solana/web3.js", "rpc-websockets", "buffer", "base64-js", "ieee754"],
     },
     optimizeDeps: {
+      force: true,
       include: [
         "buffer",
         "process",
