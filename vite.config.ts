@@ -49,6 +49,7 @@ const appViteConfig = {
 
   define: {
     global: "globalThis",
+    Buffer: "Buffer",
   },
 
   resolve: {
