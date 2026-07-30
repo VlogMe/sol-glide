@@ -1,4 +1,3 @@
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -11,6 +10,7 @@ import {
 import { type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import "@/lib/buffer-polyfill";
 
 function NotFoundComponent() {
   return (
@@ -37,7 +37,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -76,22 +75,29 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "SOLPITCH SWAP — Fast Solana Swaps" },
-      { name: "description", content: "Get the best prices by routing across all major Solana DEXes with Phantom support." },
+      {
+        name: "description",
+        content:
+          "Get the best prices by routing across all major Solana DEXes with Phantom support.",
+      },
       { property: "og:title", content: "SOLPITCH SWAP — Fast Solana Swaps" },
-      { property: "og:description", content: "Get the best prices by routing across all major Solana DEXes with Phantom support." },
+      {
+        property: "og:description",
+        content:
+          "Get the best prices by routing across all major Solana DEXes with Phantom support.",
+      },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "SOLPITCH SWAP — Fast Solana Swaps" },
-      { name: "twitter:description", content: "Get the best prices by routing across all major Solana DEXes with Phantom support." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c3ae21ba-0a6d-46b1-8c1d-40a00852e3fd/id-preview-ff40b027--29f408d0-0606-45f3-ac63-d92bb9ff8bf1.lovable.app-1784510011729.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c3ae21ba-0a6d-46b1-8c1d-40a00852e3fd/id-preview-ff40b027--29f408d0-0606-45f3-ac63-d92bb9ff8bf1.lovable.app-1784510011729.png" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.png", type: "image/png" },
+      {
+        rel: "icon",
+        href: "/favicon.png",
+        type: "image/png",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -117,10 +123,8 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
-
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
     </QueryClientProvider>
   );
