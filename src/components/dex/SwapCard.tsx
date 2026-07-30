@@ -1,6 +1,5 @@
 import "@/lib/buffer-polyfill";
 
-import { VersionedTransaction, Connection } from "@solana/web3.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownUp, Loader2, Settings2, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -14,9 +13,14 @@ import {
   WALLET_DISCONNECT_EVENT,
   WALLET_CONNECT_EVENT,
 } from "./PhantomButton";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const NORMAL_FEE_BPS = 50;
+
 const PLATFORM_FEE_WALLET =
   "8FsSKh1dhgPvKTmnKvo9VJwshD3gqq7AbNeqUXaWrPp2";
 
@@ -28,7 +32,10 @@ function fmt(n: number, max = 6) {
   if (!isFinite(n)) return "0";
   if (n === 0) return "0";
   if (n < 0.0001) return n.toExponential(2);
-  return n.toLocaleString(undefined, { maximumFractionDigits: max });
+
+  return n.toLocaleString(undefined, {
+    maximumFractionDigits: max,
+  });
 }
 
 export function SwapCard({
@@ -44,13 +51,19 @@ export function SwapCard({
     fromAmount: string;
     toAmount: string;
   }>({
-    from: TOKENS[initialFrom] ?? TOKENS.SOL ?? Object.values(TOKENS)[0] ?? null,
+    from:
+      TOKENS[initialFrom] ??
+      TOKENS.SOL ??
+      Object.values(TOKENS)[0] ??
+      null,
+
     to:
       TOKENS[initialTo] ??
       TOKENS.USDC ??
       Object.values(TOKENS)[1] ??
       Object.values(TOKENS)[0] ??
       null,
+
     fromAmount: "",
     toAmount: "",
   });
@@ -75,13 +88,15 @@ export function SwapCard({
   const swapFn = useServerFn(getJupiterSwap);
   const logSwapFn = useServerFn(logSwap);
 
-  const feeBps = NORMAL_FEE_BPS;
-
   const { from, to, fromAmount } = swapState;
 
   useEffect(() => {
     setQuote(null);
-    setSwapState((prev) => ({ ...prev, toAmount: "" }));
+
+    setSwapState((prev) => ({
+      ...prev,
+      toAmount: "",
+    }));
 
     if (debounce.current) {
       clearTimeout(debounce.current);
@@ -89,13 +104,17 @@ export function SwapCard({
 
     const num = Number(fromAmount);
 
-    if (!fromAmount || !isFinite(num) || num <= 0) return;
+    if (!fromAmount || !isFinite(num) || num <= 0) {
+      return;
+    }
 
     debounce.current = setTimeout(async () => {
       try {
         setLoading(true);
 
-        const raw = BigInt(Math.floor(num * 10 ** from.decimals)).toString();
+        const raw = BigInt(
+          Math.floor(num * 10 ** from.decimals),
+        ).toString();
 
         const q = await quoteFn({
           data: {
@@ -111,12 +130,17 @@ export function SwapCard({
         if (q?.outAmount) {
           setSwapState((prev) => ({
             ...prev,
-            toAmount: (Number(q.outAmount) / 10 ** to.decimals).toString(),
+            toAmount: (
+              Number(q.outAmount) /
+              10 ** to.decimals
+            ).toString(),
           }));
         }
       } catch (e: any) {
         toast.error(
-          friendlyError(String(e?.message || "Failed to fetch quote")),
+          friendlyError(
+            String(e?.message || "Failed to fetch quote"),
+          ),
         );
       } finally {
         setLoading(false);
@@ -124,7 +148,9 @@ export function SwapCard({
     }, 350);
 
     return () => {
-      if (debounce.current) clearTimeout(debounce.current);
+      if (debounce.current) {
+        clearTimeout(debounce.current);
+      }
     };
   }, [
     fromAmount,
@@ -134,8 +160,7 @@ export function SwapCard({
     quoteFn,
     from.decimals,
     to.decimals,
-  ]);
-    useEffect(() => {
+  ]);  useEffect(() => {
     const onDisconnect = () => {
       setWalletAddress(null);
       setQuote(null);
@@ -150,19 +175,36 @@ export function SwapCard({
       }
     };
 
-    window.addEventListener(WALLET_DISCONNECT_EVENT, onDisconnect);
-    window.addEventListener(WALLET_CONNECT_EVENT, onConnect);
+    window.addEventListener(
+      WALLET_DISCONNECT_EVENT,
+      onDisconnect,
+    );
+
+    window.addEventListener(
+      WALLET_CONNECT_EVENT,
+      onConnect,
+    );
 
     return () => {
-      window.removeEventListener(WALLET_DISCONNECT_EVENT, onDisconnect);
-      window.removeEventListener(WALLET_CONNECT_EVENT, onConnect);
+      window.removeEventListener(
+        WALLET_DISCONNECT_EVENT,
+        onDisconnect,
+      );
+
+      window.removeEventListener(
+        WALLET_CONNECT_EVENT,
+        onConnect,
+      );
     };
   }, []);
 
   const outAmount = useMemo(() => {
     if (!quote?.outAmount) return "";
 
-    return (Number(quote.outAmount) / 10 ** to.decimals).toString();
+    return (
+      Number(quote.outAmount) /
+      10 ** to.decimals
+    ).toString();
   }, [quote, to.decimals]);
 
   const priceImpact = quote?.priceImpactPct
@@ -198,8 +240,15 @@ export function SwapCard({
       const swapTransaction = res?.swapTransaction;
 
       if (!swapTransaction) {
-        throw new Error("Jupiter did not return a swap transaction");
+        throw new Error(
+          "Jupiter did not return a swap transaction",
+        );
       }
+
+      const {
+        VersionedTransaction,
+        Connection,
+      } = await import("@solana/web3.js");
 
       const txBytes = new Uint8Array(
         (globalThis as any).Buffer.from(
@@ -208,41 +257,57 @@ export function SwapCard({
         ),
       );
 
-      const tx = VersionedTransaction.deserialize(txBytes);
+      const tx =
+        VersionedTransaction.deserialize(txBytes);
 
       const connection = new Connection(
-        (import.meta as any).env?.VITE_RPC_URL ||
+        (import.meta as any).env?.VITE_RPC_URL ??
           "https://api.mainnet-beta.solana.com",
         "confirmed",
       );
 
       let signature: string;
 
-      if (typeof provider.signAndSendTransaction === "function") {
-        const result = await provider.signAndSendTransaction(tx);
+      if (
+        typeof provider.signAndSendTransaction ===
+        "function"
+      ) {
+        const result =
+          await provider.signAndSendTransaction(tx);
 
-        signature = result?.signature ?? result;
+        signature =
+          result?.signature ??
+          result;
       } else {
-        const signed = await provider.signTransaction(tx);
+        const signed =
+          await provider.signTransaction(tx);
 
-        signature = await connection.sendRawTransaction(
-          signed.serialize(),
-          {
-            skipPreflight: false,
-            maxRetries: 3,
-          },
-        );
+        signature =
+          await connection.sendRawTransaction(
+            signed.serialize(),
+            {
+              skipPreflight: false,
+              maxRetries: 3,
+            },
+          );
       }
 
-      await connection.confirmTransaction(signature, "confirmed");
+      await connection.confirmTransaction(
+        signature,
+        "confirmed",
+      );
 
       await logSwapFn({
         data: {
           signature,
           inputMint: from.mint,
           outputMint: to.mint,
-          inAmount: String(quote.inAmount ?? ""),
-          outAmount: String(quote.outAmount ?? ""),
+          inAmount: String(
+            quote.inAmount ?? "",
+          ),
+          outAmount: String(
+            quote.outAmount ?? "",
+          ),
         },
       });
 
@@ -263,12 +328,21 @@ export function SwapCard({
       }));
 
       setQuote(null);
+
     } catch (e: any) {
-      console.error("Swap error:", e);
+      console.error(
+        "Swap error:",
+        e,
+      );
 
       if (e?.code !== 4001) {
         toast.error(
-          friendlyError(String(e?.message || "Swap failed")),
+          friendlyError(
+            String(
+              e?.message ||
+              "Swap failed",
+            ),
+          ),
         );
       }
     } finally {
@@ -277,7 +351,8 @@ export function SwapCard({
   };
 
   const lowLiquidity =
-    to.symbol === "SPDD" || priceImpact > 3;
+    to.symbol === "SPDD" ||
+    priceImpact > 3;
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -304,7 +379,7 @@ export function SwapCard({
               </div>
 
               <div className="grid grid-cols-3 gap-2">
-                {[50, 100, 200].map((b) => (
+                {[50,100,200].map((b) => (
                   <button
                     key={b}
                     type="button"
@@ -317,9 +392,7 @@ export function SwapCard({
               </div>
             </PopoverContent>
           </Popover>
-        </div>
-
-        <TokenSelect
+        </div>        <TokenSelect
           value={from}
           onChange={(t) =>
             setSwapState((p) => ({
@@ -355,7 +428,8 @@ export function SwapCard({
         >
           <ArrowDownUp />
         </button>
-                <TokenSelect
+
+        <TokenSelect
           value={to}
           onChange={(t) =>
             setSwapState((p) => ({
@@ -366,12 +440,16 @@ export function SwapCard({
         />
 
         <div className="text-3xl mt-3">
-          {outAmount ? fmt(Number(outAmount), 8) : "0.00"}
+          {outAmount
+            ? fmt(Number(outAmount), 8)
+            : "0.00"}
         </div>
 
         {lowLiquidity && (
           <div className="mt-4 text-xs text-yellow-200">
-            <AlertTriangle className="inline h-4 w-4" /> Low liquidity
+            <AlertTriangle className="inline h-4 w-4" />
+            {" "}
+            Low liquidity
           </div>
         )}
 
@@ -384,7 +462,11 @@ export function SwapCard({
 
               <button
                 onClick={executeSwap}
-                disabled={!quote || swapping || loading}
+                disabled={
+                  !quote ||
+                  swapping ||
+                  loading
+                }
                 className="flex-1"
               >
                 {swapping ? (
@@ -398,12 +480,17 @@ export function SwapCard({
         </div>
 
         <div className="mt-4 text-xs text-muted-foreground">
-          <Info className="inline h-3 w-3" /> Powered by Jupiter.
+          <Info className="inline h-3 w-3" />
+          {" "}
+          Powered by Jupiter.
         </div>
+
       </div>
 
       <p className="text-[10px] text-muted-foreground text-center mt-3">
-        Platform fee wallet {PLATFORM_FEE_WALLET.slice(0, 6)}…
+        Platform fee wallet{" "}
+        {PLATFORM_FEE_WALLET.slice(0, 6)}
+        …
       </p>
     </div>
   );
