@@ -205,25 +205,6 @@ across builds.
 
 ---
 
-## Portability
-
-`vite.config.ts` uses `@lovable.dev/vite-tanstack-config` **only if it is installed**,
-and otherwise falls back to the equivalent standard plugin stack
-(`@tanstack/react-start/plugin/vite`, `@vitejs/plugin-react`, `@tailwindcss/vite`,
-`vite-tsconfig-paths`, `nitro/vite`). Both paths produce the same build.
-
-To fully detach from Lovable, remove the dev dependency:
-
-```bash
-bun remove @lovable.dev/vite-tanstack-config
-```
-
-Optional cleanup of Lovable-only, non-functional files:
-
-- `AGENTS.md`
-- `.lovable/`
-- `src/lib/lovable-error-reporting.ts` (and its two call sites in `src/routes/__root.tsx`)
-
 ## License
 
 Private.

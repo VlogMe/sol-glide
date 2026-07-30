@@ -3,16 +3,11 @@ import { nodePolyfills } from "vite-plugin-node-polyfills";
 import type { PluginOption, UserConfig } from "vite";
 
 /**
- * Vendor-neutral Vite config for this TanStack Start app.
+ * Vite config for this TanStack Start app.
  *
- * It builds and runs with ONLY open-source packages:
+ * It builds and runs with only open-source packages:
  *   @tanstack/react-start, @vitejs/plugin-react, @tailwindcss/vite,
  *   vite-tsconfig-paths, nitro, vite-plugin-node-polyfills
- *
- * `@lovable.dev/vite-tanstack-config` is used opportunistically when it is
- * installed (it adds editor-preview HMR niceties). If the package is absent —
- * e.g. after exporting to GitHub and removing it from package.json — the
- * standard plugin stack below is used instead and the build is identical.
  */
 
 const rpcWebsocketsBrowser = path.resolve(
@@ -23,7 +18,7 @@ const rpcWebsocketsBrowser = path.resolve(
 /** Deploy target for the Nitro server build. Override with NITRO_PRESET. */
 const NITRO_PRESET = process.env.NITRO_PRESET || "cloudflare-module";
 
-/** App-owned Vite settings. Shared by both the Lovable and the standalone path. */
+/** App-owned Vite settings. */
 const appViteConfig = {
   plugins: [
     {
@@ -57,27 +52,9 @@ const appViteConfig = {
   },
 } satisfies UserConfig;
 
-async function loadLovableConfig() {
-  try {
-    return (await import("@lovable.dev/vite-tanstack-config")).defineConfig;
-  } catch {
-    return null;
-  }
-}
-
 export default async function config(env: { command: "build" | "serve"; mode: string }) {
   const { command } = env;
-  const lovableDefineConfig = await loadLovableConfig();
 
-  if (lovableDefineConfig) {
-    // The wrapper returns an env-aware factory; resolve it to a plain config.
-    return await lovableDefineConfig({
-      tanstackStart: { server: { entry: "server" } },
-      vite: appViteConfig,
-    })(env);
-  }
-
-  // ---- Standalone (no Lovable packages installed) ----
   const [{ tanstackStart }, react, tailwindcss, tsConfigPaths] = await Promise.all([
     import("@tanstack/react-start/plugin/vite"),
     import("@vitejs/plugin-react").then((m) => m.default),
