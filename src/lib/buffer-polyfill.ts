@@ -1,6 +1,9 @@
-console.log("BUFFER SETUP CHECK", {
-  Buffer: typeof existing,
-  BufferFrom: typeof existing?.from,
-  GlobalBuffer: typeof globalThis.Buffer,
-  WindowBuffer: typeof window?.Buffer,
-});
+import { Buffer } from "buffer";
+
+if (typeof globalThis.Buffer === "undefined") {
+  (globalThis as any).Buffer = Buffer;
+}
+
+if (typeof window !== "undefined" && typeof (window as any).Buffer === "undefined") {
+  (window as any).Buffer = Buffer;
+}
