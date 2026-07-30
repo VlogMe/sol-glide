@@ -1,12 +1,22 @@
 import "@/lib/buffer-polyfill";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownUp, Loader2, Settings2, Info, AlertTriangle } from "lucide-react";
+import {
+  ArrowDownUp,
+  Loader2,
+  Settings2,
+  Info,
+  AlertTriangle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 
 import { TOKENS, type Token } from "@/lib/tokens";
-import { getJupiterQuote, getJupiterSwap, logSwap } from "@/lib/jupiter.functions";
+import {
+  getJupiterQuote,
+  getJupiterSwap,
+  logSwap,
+} from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import {
   PhantomButton,
@@ -19,19 +29,20 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-const NORMAL_FEE_BPS = 50;
-
 const PLATFORM_FEE_WALLET =
   "8FsSKh1dhgPvKTmnKvo9VJwshD3gqq7AbNeqUXaWrPp2";
 
-function friendlyError(raw: string): string {
+function friendlyError(raw: string) {
   return raw.length > 160 ? raw.slice(0, 160) + "…" : raw;
 }
 
 function fmt(n: number, max = 6) {
   if (!isFinite(n)) return "0";
   if (n === 0) return "0";
-  if (n < 0.0001) return n.toExponential(2);
+
+  if (n < 0.0001) {
+    return n.toExponential(2);
+  }
 
   return n.toLocaleString(undefined, {
     maximumFractionDigits: max,
@@ -68,21 +79,15 @@ export function SwapCard({
     toAmount: "",
   });
 
-  if (!swapState.from || !swapState.to) {
-    return (
-      <div className="flex items-center justify-center p-8 text-gray-400">
-        Loading tokens and market data...
-      </div>
-    );
-  }
-
   const [slippageBps, setSlippageBps] = useState(50);
   const [quote, setQuote] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [swapping, setSwapping] = useState(false);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletAddress, setWalletAddress] =
+    useState<string | null>(null);
 
-  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounce =
+    useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
@@ -91,6 +96,8 @@ export function SwapCard({
   const { from, to, fromAmount } = swapState;
 
   useEffect(() => {
+    if (!from || !to) return;
+
     setQuote(null);
 
     setSwapState((prev) => ({
@@ -139,7 +146,10 @@ export function SwapCard({
       } catch (e: any) {
         toast.error(
           friendlyError(
-            String(e?.message || "Failed to fetch quote"),
+            String(
+              e?.message ||
+              "Failed to fetch quote",
+            ),
           ),
         );
       } finally {
@@ -153,14 +163,13 @@ export function SwapCard({
       }
     };
   }, [
+    from,
+    to,
     fromAmount,
-    from.mint,
-    to.mint,
     slippageBps,
     quoteFn,
-    from.decimals,
-    to.decimals,
-  ]);  useEffect(() => {
+  ]);
+    useEffect(() => {
     const onDisconnect = () => {
       setWalletAddress(null);
       setQuote(null);
@@ -168,7 +177,8 @@ export function SwapCard({
     };
 
     const onConnect = (e: Event) => {
-      const addr = (e as CustomEvent).detail?.address;
+      const addr =
+        (e as CustomEvent).detail?.address;
 
       if (typeof addr === "string") {
         setWalletAddress(addr);
@@ -199,21 +209,29 @@ export function SwapCard({
   }, []);
 
   const outAmount = useMemo(() => {
-    if (!quote?.outAmount) return "";
+    if (!quote?.outAmount || !to) {
+      return "";
+    }
 
     return (
       Number(quote.outAmount) /
       10 ** to.decimals
     ).toString();
-  }, [quote, to.decimals]);
+  }, [quote, to]);
 
-  const priceImpact = quote?.priceImpactPct
-    ? Number(quote.priceImpactPct) * 100
-    : 0;
+  const priceImpact =
+    quote?.priceImpactPct
+      ? Number(quote.priceImpactPct) * 100
+      : 0;
 
   const executeSwap = async () => {
     if (!quote) {
       toast.error("No quote available");
+      return;
+    }
+
+    if (!from || !to) {
+      toast.error("Tokens not loaded");
       return;
     }
 
@@ -237,7 +255,8 @@ export function SwapCard({
         },
       });
 
-      const swapTransaction = res?.swapTransaction;
+      const swapTransaction =
+        res?.swapTransaction;
 
       if (!swapTransaction) {
         throw new Error(
@@ -258,13 +277,17 @@ export function SwapCard({
       );
 
       const tx =
-        VersionedTransaction.deserialize(txBytes);
+        VersionedTransaction.deserialize(
+          txBytes,
+        );
 
-      const connection = new Connection(
-        (import.meta as any).env?.VITE_RPC_URL ??
-          "https://api.mainnet-beta.solana.com",
-        "confirmed",
-      );
+      const connection =
+        new Connection(
+          (import.meta as any).env
+            ?.VITE_RPC_URL ??
+            "https://api.mainnet-beta.solana.com",
+          "confirmed",
+        );
 
       let signature: string;
 
@@ -273,7 +296,9 @@ export function SwapCard({
         "function"
       ) {
         const result =
-          await provider.signAndSendTransaction(tx);
+          await provider.signAndSendTransaction(
+            tx,
+          );
 
         signature =
           result?.signature ??
@@ -325,6 +350,7 @@ export function SwapCard({
       setSwapState((prev) => ({
         ...prev,
         fromAmount: "",
+        toAmount: "",
       }));
 
       setQuote(null);
@@ -350,6 +376,14 @@ export function SwapCard({
     }
   };
 
+  if (!from || !to) {
+    return (
+      <div className="flex items-center justify-center p-8 text-gray-400">
+        Loading tokens and market data...
+      </div>
+    );
+  }
+
   const lowLiquidity =
     to.symbol === "SPDD" ||
     priceImpact > 3;
@@ -357,8 +391,7 @@ export function SwapCard({
   return (
     <div className="w-full max-w-md mx-auto">
       <div className="glass rounded-3xl overflow-hidden shadow-[var(--shadow-card)] p-5 md:p-6">
-
-        <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">
             Swap
           </h2>
@@ -379,7 +412,7 @@ export function SwapCard({
               </div>
 
               <div className="grid grid-cols-3 gap-2">
-                {[50,100,200].map((b) => (
+                {[50, 100, 200].map((b) => (
                   <button
                     key={b}
                     type="button"
@@ -392,7 +425,9 @@ export function SwapCard({
               </div>
             </PopoverContent>
           </Popover>
-        </div>        <TokenSelect
+        </div>
+
+        <TokenSelect
           value={from}
           onChange={(t) =>
             setSwapState((p) => ({
@@ -484,7 +519,6 @@ export function SwapCard({
           {" "}
           Powered by Jupiter.
         </div>
-
       </div>
 
       <p className="text-[10px] text-muted-foreground text-center mt-3">
