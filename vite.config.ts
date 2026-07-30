@@ -65,14 +65,16 @@ async function loadLovableConfig() {
   }
 }
 
-export default async function config({ command }: { command: "build" | "serve" }) {
+export default async function config(env: { command: "build" | "serve"; mode: string }) {
+  const { command } = env;
   const lovableDefineConfig = await loadLovableConfig();
 
   if (lovableDefineConfig) {
-    return lovableDefineConfig({
+    // The wrapper returns an env-aware factory; resolve it to a plain config.
+    return await lovableDefineConfig({
       tanstackStart: { server: { entry: "server" } },
       vite: appViteConfig,
-    });
+    })(env);
   }
 
   // ---- Standalone (no Lovable packages installed) ----
