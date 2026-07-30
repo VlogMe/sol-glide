@@ -1,5 +1,6 @@
 import "@/lib/buffer-polyfill";
 
+import { VersionedTransaction, Connection } from "@solana/web3.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownUp, Loader2, Settings2, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -8,11 +9,16 @@ import { useServerFn } from "@tanstack/react-start";
 import { TOKENS, type Token } from "@/lib/tokens";
 import { getJupiterQuote, getJupiterSwap, logSwap } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
-import { PhantomButton, WALLET_DISCONNECT_EVENT, WALLET_CONNECT_EVENT } from "./PhantomButton";
+import {
+  PhantomButton,
+  WALLET_DISCONNECT_EVENT,
+  WALLET_CONNECT_EVENT,
+} from "./PhantomButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const NORMAL_FEE_BPS = 50;
-const PLATFORM_FEE_WALLET = "8FsSKh1dhgPvKTmnKvo9VJwshD3gqq7AbNeqUXaWrPp2";
+const PLATFORM_FEE_WALLET =
+  "8FsSKh1dhgPvKTmnKvo9VJwshD3gqq7AbNeqUXaWrPp2";
 
 function friendlyError(raw: string): string {
   return raw.length > 160 ? raw.slice(0, 160) + "…" : raw;
@@ -109,7 +115,9 @@ export function SwapCard({
           }));
         }
       } catch (e: any) {
-        toast.error(friendlyError(String(e?.message || "Failed to fetch quote")));
+        toast.error(
+          friendlyError(String(e?.message || "Failed to fetch quote")),
+        );
       } finally {
         setLoading(false);
       }
@@ -118,9 +126,16 @@ export function SwapCard({
     return () => {
       if (debounce.current) clearTimeout(debounce.current);
     };
-  }, [fromAmount, from.mint, to.mint, slippageBps, quoteFn, from.decimals, to.decimals]);
-
-  useEffect(() => {
+  }, [
+    fromAmount,
+    from.mint,
+    to.mint,
+    slippageBps,
+    quoteFn,
+    from.decimals,
+    to.decimals,
+  ]);
+    useEffect(() => {
     const onDisconnect = () => {
       setWalletAddress(null);
       setQuote(null);
@@ -129,6 +144,7 @@ export function SwapCard({
 
     const onConnect = (e: Event) => {
       const addr = (e as CustomEvent).detail?.address;
+
       if (typeof addr === "string") {
         setWalletAddress(addr);
       }
@@ -145,10 +161,13 @@ export function SwapCard({
 
   const outAmount = useMemo(() => {
     if (!quote?.outAmount) return "";
+
     return (Number(quote.outAmount) / 10 ** to.decimals).toString();
   }, [quote, to.decimals]);
 
-  const priceImpact = quote?.priceImpactPct ? Number(quote.priceImpactPct) * 100 : 0;
+  const priceImpact = quote?.priceImpactPct
+    ? Number(quote.priceImpactPct) * 100
+    : 0;
 
   const executeSwap = async () => {
     if (!quote) {
@@ -182,11 +201,6 @@ export function SwapCard({
         throw new Error("Jupiter did not return a swap transaction");
       }
 
-      await import("@/lib/buffer-polyfill");
-
-      const { VersionedTransaction, Connection } =
-        await import("@solana/web3.js");
-
       const txBytes = new Uint8Array(
         (globalThis as any).Buffer.from(
           swapTransaction,
@@ -206,9 +220,11 @@ export function SwapCard({
 
       if (typeof provider.signAndSendTransaction === "function") {
         const result = await provider.signAndSendTransaction(tx);
+
         signature = result?.signature ?? result;
       } else {
         const signed = await provider.signTransaction(tx);
+
         signature = await connection.sendRawTransaction(
           signed.serialize(),
           {
@@ -251,21 +267,26 @@ export function SwapCard({
       console.error("Swap error:", e);
 
       if (e?.code !== 4001) {
-        toast.error(friendlyError(String(e?.message || "Swap failed")));
+        toast.error(
+          friendlyError(String(e?.message || "Swap failed")),
+        );
       }
     } finally {
       setSwapping(false);
     }
   };
 
-  const lowLiquidity = to.symbol === "SPDD" || priceImpact > 3;
+  const lowLiquidity =
+    to.symbol === "SPDD" || priceImpact > 3;
 
   return (
     <div className="w-full max-w-md mx-auto">
       <div className="glass rounded-3xl overflow-hidden shadow-[var(--shadow-card)] p-5 md:p-6">
 
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Swap</h2>
+          <h2 className="text-lg font-semibold">
+            Swap
+          </h2>
 
           <Popover>
             <PopoverTrigger asChild>
@@ -283,14 +304,14 @@ export function SwapCard({
               </div>
 
               <div className="grid grid-cols-3 gap-2">
-                {[50,100,200].map((b)=>(
+                {[50, 100, 200].map((b) => (
                   <button
                     key={b}
                     type="button"
-                    onClick={()=>setSlippageBps(b)}
+                    onClick={() => setSlippageBps(b)}
                     className="px-2 py-1.5 rounded-lg text-xs border"
                   >
-                    {b/100}%
+                    {b / 100}%
                   </button>
                 ))}
               </div>
@@ -300,13 +321,23 @@ export function SwapCard({
 
         <TokenSelect
           value={from}
-          onChange={(t)=>setSwapState(p=>({...p,from:t}))}
+          onChange={(t) =>
+            setSwapState((p) => ({
+              ...p,
+              from: t,
+            }))
+          }
         />
 
         <input
           type="number"
           value={fromAmount}
-          onChange={(e)=>setSwapState(p=>({...p,fromAmount:e.target.value}))}
+          onChange={(e) =>
+            setSwapState((p) => ({
+              ...p,
+              fromAmount: e.target.value,
+            }))
+          }
           className="w-full text-3xl bg-transparent"
           placeholder="0.00"
         />
@@ -314,24 +345,28 @@ export function SwapCard({
         <button
           type="button"
           onClick={() =>
-            setSwapState(p=>({
-              from:p.to,
-              to:p.from,
-              fromAmount:p.toAmount,
-              toAmount:p.fromAmount,
+            setSwapState((p) => ({
+              from: p.to,
+              to: p.from,
+              fromAmount: p.toAmount,
+              toAmount: p.fromAmount,
             }))
           }
         >
           <ArrowDownUp />
         </button>
-
-        <TokenSelect
+                <TokenSelect
           value={to}
-          onChange={(t)=>setSwapState(p=>({...p,to:t}))}
+          onChange={(t) =>
+            setSwapState((p) => ({
+              ...p,
+              to: t,
+            }))
+          }
         />
 
         <div className="text-3xl mt-3">
-          {outAmount ? fmt(Number(outAmount),8) : "0.00"}
+          {outAmount ? fmt(Number(outAmount), 8) : "0.00"}
         </div>
 
         {lowLiquidity && (
@@ -346,6 +381,7 @@ export function SwapCard({
           ) : (
             <>
               <PhantomButton />
+
               <button
                 onClick={executeSwap}
                 disabled={!quote || swapping || loading}
@@ -364,11 +400,10 @@ export function SwapCard({
         <div className="mt-4 text-xs text-muted-foreground">
           <Info className="inline h-3 w-3" /> Powered by Jupiter.
         </div>
-
       </div>
 
       <p className="text-[10px] text-muted-foreground text-center mt-3">
-        Platform fee wallet {PLATFORM_FEE_WALLET.slice(0,6)}…
+        Platform fee wallet {PLATFORM_FEE_WALLET.slice(0, 6)}…
       </p>
     </div>
   );
