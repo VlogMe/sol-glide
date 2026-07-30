@@ -52,27 +52,9 @@ const appViteConfig = {
   },
 } satisfies UserConfig;
 
-async function loadLovableConfig() {
-  try {
-    return (await import("@lovable.dev/vite-tanstack-config")).defineConfig;
-  } catch {
-    return null;
-  }
-}
-
 export default async function config(env: { command: "build" | "serve"; mode: string }) {
   const { command } = env;
-  const lovableDefineConfig = await loadLovableConfig();
 
-  if (lovableDefineConfig) {
-    // The wrapper returns an env-aware factory; resolve it to a plain config.
-    return await lovableDefineConfig({
-      tanstackStart: { server: { entry: "server" } },
-      vite: appViteConfig,
-    })(env);
-  }
-
-  // ---- Standalone (no Lovable packages installed) ----
   const [{ tanstackStart }, react, tailwindcss, tsConfigPaths] = await Promise.all([
     import("@tanstack/react-start/plugin/vite"),
     import("@vitejs/plugin-react").then((m) => m.default),
