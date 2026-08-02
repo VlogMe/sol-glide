@@ -509,13 +509,14 @@ export function SwapCard({
               <PhantomButton />
 
               <button
+                type="button"
                 onClick={executeSwap}
                 disabled={
                   !quote ||
                   swapping ||
                   loading
                 }
-                className="flex-1"
+                className="flex-1 inline-flex items-center justify-center px-4 py-2 text-sm bg-[linear-gradient(90deg,#9945FF_0%,#14F195_100%)] text-white font-semibold rounded-xl shadow-md hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {swapping ? (
                   <Loader2 className="animate-spin" />
