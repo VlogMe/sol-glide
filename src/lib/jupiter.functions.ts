@@ -244,6 +244,14 @@ function simulationError(
 ) {
   const detail = `${JSON.stringify(err)} ${logs.join(" ")}`;
 
+  if (/AccountNotFound/i.test(detail)) {
+    return "The connected Phantom account is not funded on Solana. Switch to the funded account or deposit SOL, then reconnect.";
+  }
+
+  if (/InsufficientFundsForFee/i.test(detail)) {
+    return "Not enough SOL to cover this swap and its network fees. Reduce the amount or add more SOL.";
+  }
+
   if (/insufficient funds|insufficient lamports/i.test(detail)) {
     return "Insufficient SOL or token balance for this swap and network fees.";
   }
