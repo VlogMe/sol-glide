@@ -11,6 +11,9 @@ const JUPITER = () =>
   process.env.JUPITER_API_URL ||
   "https://lite-api.jup.ag/swap/v1";
 
+const SOLANA_RPC = () =>
+  process.env.SOLANA_RPC_URL;
+
 async function fetchWithTimeout(
   url: string,
   init: RequestInit = {},
@@ -27,6 +30,50 @@ async function fetchWithTimeout(
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function solanaRpc<T>(
+  method: string,
+  params: unknown[],
+): Promise<T> {
+  const rpcUrl = SOLANA_RPC();
+
+  if (!rpcUrl) {
+    throw new Error("Solana RPC is not configured");
+  }
+
+  const response = await fetchWithTimeout(
+    rpcUrl,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method,
+        params,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Solana RPC failed (${response.status})`);
+  }
+
+  const json = await response.json() as {
+    result?: T;
+    error?: { message?: string };
+  };
+
+  if (json.error) {
+    throw new Error(
+      json.error.message || "Solana RPC request failed",
+    );
+  }
+
+  return json.result as T;
 }
 
 const JUP_UNREACHABLE =
@@ -175,6 +222,21 @@ export type QuoteInput =
 
 export type SwapInput =
   z.infer<typeof SwapSchema>;
+
+const signature =
+  z.string().regex(
+    /^[1-9A-HJ-NP-Za-km-z]{64,100}$/,
+    "Invalid transaction signature",
+  );
+
+const signedTransaction =
+  z.string()
+    .min(100)
+    .max(20_000)
+    .regex(
+      /^[A-Za-z0-9+/]+={0,2}$/,
+      "Invalid signed transaction",
+    );
 
 export const getJupiterQuote =
   createServerFn({
@@ -449,6 +511,78 @@ export const getJupiterSwap =
         };
       },
     );
+
+export const sendSignedTransaction =
+  createServerFn({
+    method: "POST",
+  })
+    .inputValidator((d: unknown) =>
+      z.object({ signedTransaction }).parse(d),
+    )
+    .handler(async ({ data }) => {
+      rateLimit("send-transaction");
+
+      const result = await solanaRpc<string>(
+        "sendTransaction",
+        [
+          data.signedTransaction,
+          {
+            encoding: "base64",
+            skipPreflight: false,
+            maxRetries: 3,
+          },
+        ],
+      );
+
+      return { signature: result };
+    });
+
+export const getSwapStatus =
+  createServerFn({
+    method: "POST",
+  })
+    .inputValidator((d: unknown) =>
+      z.object({ signature }).parse(d),
+    )
+    .handler(async ({ data }) => {
+      rateLimit("swap-status");
+
+      const result = await solanaRpc<{
+        value: Array<{
+          err: unknown;
+          confirmationStatus?: string | null;
+        } | null>;
+      }>(
+        "getSignatureStatuses",
+        [
+          [data.signature],
+          { searchTransactionHistory: true },
+        ],
+      );
+
+      const status = result?.value?.[0] ?? null;
+
+      if (!status) {
+        return { state: "pending" as const };
+      }
+
+      if (status.err) {
+        return {
+          state: "failed" as const,
+          error: JSON.stringify(status.err),
+        };
+      }
+
+      if (
+        status.confirmationStatus === "confirmed" ||
+        status.confirmationStatus === "finalized"
+      ) {
+        return { state: "confirmed" as const };
+      }
+
+      return { state: "pending" as const };
+    });
+
 export const logSwap =
   createServerFn({
     method: "POST",
