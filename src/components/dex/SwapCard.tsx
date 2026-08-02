@@ -518,3 +518,22 @@ export function SwapCard({
                 className="flex-1"
               >
                 {swapping ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  "Swap Now"
+                )}
+              </button>
+            </>
+          )}
+        </div>
+
+        <div className="mt-4 text-xs text-muted-foreground">
+          <Info className="inline h-3 w-3" />
+          {" "}
+          Powered by Jupiter.
+        </div>
+      </div>
+
+    </div>
+  );
+}
