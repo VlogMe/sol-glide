@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { PopularPairs } from "./PopularPairs";
 
@@ -7,7 +7,7 @@ const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: mo
 
 export function DexApp() {
   const [mounted, setMounted] = useState(false);
-  const [pair, setPair] = useState({ from: "SOL", to: "SPDD" });
+  const [pair, setPair] = useState({ from: "SOL", to: "USDC" });
 
   useEffect(() => {
     setMounted(true);
@@ -49,8 +49,10 @@ function DexLayout({
                 swaps.
               </p>
               <div className="mt-6 flex flex-wrap gap-6 text-sm">
-                <Bullet color="red">0.5% flat platform fee</Bullet>
-                <Bullet color="green">0.3% platform fee when holding 1M $SPDD tokens</Bullet>
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full animate-pulse bg-green-500 shadow-lg shadow-green-500/50" />
+                  <span>Liquid routes powered by Jupiter</span>
+                </div>
               </div>
             </div>
             <div>
@@ -87,20 +89,4 @@ function HeaderSkeleton() {
 
 function SwapCardSkeleton() {
   return <div className="glass h-[430px] w-full max-w-md mx-auto rounded-3xl" aria-hidden />;
-}
-
-function Bullet({
-  children,
-  color,
-}: {
-  children: ReactNode;
-  color: "red" | "green";
-}) {
-  const colorClass = color === "red" ? "bg-red-500 shadow-red-500/50" : "bg-green-500 shadow-green-500/50";
-  return (
-    <div className="flex items-center gap-2">
-      <span className={`h-3 w-3 rounded-full animate-pulse shadow-lg ${colorClass}`} />
-      <span>{children}</span>
-    </div>
-  );
 }
