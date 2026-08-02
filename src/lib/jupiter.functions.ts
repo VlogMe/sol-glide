@@ -32,89 +32,6 @@ async function fetchWithTimeout(
 const JUP_UNREACHABLE =
   "Unable to get quote. Please try again.";
 
-const PLATFORM_FEE_BPS = 50;
-const VIP_FEE_BPS = 30;
-
-const SPDD_MINT =
-  "C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump";
-
-const SPDD_VIP_THRESHOLD = 1_000_000;
-
-const PLATFORM_FEE_WALLET = () =>
-  process.env.PLATFORM_FEE_WALLET || "";
-
-const RPC = () =>
-  process.env.RPC_URL ||
-  process.env.VITE_RPC_URL ||
-  process.env.SOLANA_RPC_URL ||
-  "https://api.mainnet-beta.solana.com";
-
-
-async function getSpddBalance(
-  owner: string,
-): Promise<number> {
-  try {
-    const res = await fetch(RPC(), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "getTokenAccountsByOwner",
-        params: [
-          owner,
-          {
-            mint: SPDD_MINT,
-          },
-          {
-            encoding: "jsonParsed",
-          },
-        ],
-      }),
-    });
-
-    const json: any = await res.json();
-
-    const accounts =
-      json?.result?.value ?? [];
-
-    let total = 0;
-
-    for (const account of accounts) {
-      const amount =
-        account?.account?.data?.parsed?.info
-          ?.tokenAmount?.uiAmount;
-
-      if (typeof amount === "number") {
-        total += amount;
-      }
-    }
-
-    return total;
-  } catch {
-    return 0;
-  }
-}
-
-
-async function feeBpsForOwner(
-  owner?: string,
-): Promise<number> {
-  if (!owner) {
-    return PLATFORM_FEE_BPS;
-  }
-
-  const balance =
-    await getSpddBalance(owner);
-
-  return balance >= SPDD_VIP_THRESHOLD
-    ? VIP_FEE_BPS
-    : PLATFORM_FEE_BPS;
-}
-
-
 // ---------------- RATE LIMIT ----------------
 
 type Bucket = {
@@ -223,24 +140,6 @@ const amount =
     .max(30);
 
 
-const VipProofSchema =
-  z.object({
-    publicKey: mint,
-
-    signature:
-      z.string()
-        .regex(
-          base58,
-          "Invalid signature",
-        ),
-
-    nonce:
-      z.string()
-        .min(8)
-        .max(128),
-  });
-
-
 const QuoteSchema =
   z.object({
     inputMint: mint,
@@ -252,8 +151,6 @@ const QuoteSchema =
         .min(1)
         .max(5000),
 
-    vipProof:
-      VipProofSchema.optional(),
   });
 
 
@@ -279,58 +176,6 @@ export type QuoteInput =
 export type SwapInput =
   z.infer<typeof SwapSchema>;
 
-export const VIP_MESSAGE_PREFIX =
-  "SOLPITCH-VIP:";
-async function verifyVipProof(
-  proof: z.infer<typeof VipProofSchema>,
-): Promise<string | null> {
-  try {
-    const nacl =
-      (await import("tweetnacl"))
-        .default;
-
-    const bs58 =
-      (await import("bs58"))
-        .default;
-
-    const message =
-      new TextEncoder().encode(
-        `${VIP_MESSAGE_PREFIX}${proof.nonce}`,
-      );
-
-    const signature =
-      bs58.decode(
-        proof.signature,
-      );
-
-    const publicKey =
-      bs58.decode(
-        proof.publicKey,
-      );
-
-    if (
-      signature.length !== 64 ||
-      publicKey.length !== 32
-    ) {
-      return null;
-    }
-
-    const valid =
-      nacl.sign.detached.verify(
-        message,
-        signature,
-        publicKey,
-      );
-
-    return valid
-      ? proof.publicKey
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-
 export const getJupiterQuote =
   createServerFn({
     method: "POST",
@@ -344,19 +189,6 @@ export const getJupiterQuote =
         data,
       }) => {
         rateLimit("quote");
-
-        const verifiedOwner =
-          data.vipProof
-            ? await verifyVipProof(
-                data.vipProof,
-              )
-            : null;
-
-        const feeBps =
-          await feeBpsForOwner(
-            verifiedOwner ?? undefined,
-          );
-
 
         const url =
           new URL(
@@ -395,17 +227,6 @@ export const getJupiterQuote =
           "asLegacyTransaction",
           "false",
         );
-
-
-        if (
-          PLATFORM_FEE_WALLET()
-        ) {
-          url.searchParams.set(
-            "platformFeeBps",
-            String(feeBps),
-          );
-        }
-
 
         let response: Response;
 
@@ -452,16 +273,21 @@ export const getJupiterQuote =
 
 
         const json =
-          await response.json();
+          await response.json() as any;
 
+        if (
+          !json?.outAmount ||
+          !Array.isArray(json.routePlan) ||
+          json.routePlan.length === 0
+        ) {
+          throw new Error(
+            "No liquid Jupiter route is available for this pair.",
+          );
+        }
 
-        return {
-          ...(json as any),
-          _feeBps: feeBps,
-        };
+        return json;
       },
     );
-
 
 
 export const getJupiterSwap =
@@ -492,9 +318,6 @@ export const getJupiterSwap =
           {
             ...(data.quoteResponse as any),
           };
-
-
-        delete cleanQuote._feeBps;
 
 
         if (
@@ -531,15 +354,6 @@ export const getJupiterSwap =
             prioritizationFeeLamports:
               "auto",
           };
-
-
-        if (
-          PLATFORM_FEE_WALLET()
-        ) {
-          body.feeAccount =
-            PLATFORM_FEE_WALLET();
-        }
-
 
         let response: Response;
 
@@ -635,48 +449,6 @@ export const getJupiterSwap =
         };
       },
     );
-export const getSpddTier =
-  createServerFn({
-    method: "POST",
-  })
-    .inputValidator(
-      (d: unknown) =>
-        z
-          .object({
-            userPublicKey: mint,
-          })
-          .parse(d),
-    )
-    .handler(
-      async ({
-        data,
-      }) => {
-        const balance =
-          await getSpddBalance(
-            data.userPublicKey,
-          );
-
-        const isVip =
-          balance >= SPDD_VIP_THRESHOLD;
-
-
-        return {
-          balance,
-          isVip,
-
-          feeBps:
-            isVip
-              ? VIP_FEE_BPS
-              : PLATFORM_FEE_BPS,
-
-          threshold:
-            SPDD_VIP_THRESHOLD,
-        };
-      },
-    );
-
-
-
 export const logSwap =
   createServerFn({
     method: "POST",
@@ -726,261 +498,5 @@ export const logSwap =
         return {
           ok: true,
         };
-      },
-    );
-
-
-
-// Resolve token metadata by mint.
-// Uses Jupiter first, then RPC fallback.
-export const resolveTokenByMint =
-  createServerFn({
-    method: "POST",
-  })
-    .inputValidator(
-      (d: unknown) =>
-        z
-          .object({
-            mint,
-          })
-          .parse(d),
-    )
-    .handler(
-      async ({
-        data,
-      }) => {
-        rateLimit(
-          "resolve",
-        );
-
-
-        const headers = {
-          accept:
-            "application/json",
-        };
-
-
-        const tokenMint =
-          data.mint;
-
-
-
-        try {
-          const response =
-            await fetch(
-              `https://lite-api.jup.ag/tokens/v1/token/${tokenMint}`,
-              {
-                headers,
-              },
-            );
-
-
-          if (
-            response.ok
-          ) {
-            const json: any =
-              await response.json();
-
-
-            if (
-              json?.address
-            ) {
-              return {
-                symbol:
-                  json.symbol ||
-                  tokenMint.slice(0, 4),
-
-                name:
-                  json.name ||
-                  "Unknown token",
-
-                mint:
-                  json.address,
-
-                decimals:
-                  Number(
-                    json.decimals ?? 0,
-                  ),
-
-                logoURI:
-                  json.logoURI ||
-                  "",
-
-                warn:
-                  false,
-
-                source:
-                  "jupiter" as const,
-              };
-            }
-          }
-        } catch {}
-
-
-
-        try {
-          const response =
-            await fetch(
-              `https://lite-api.jup.ag/tokens/v1/search?query=${encodeURIComponent(
-                tokenMint,
-              )}`,
-              {
-                headers,
-              },
-            );
-
-
-          if (
-            response.ok
-          ) {
-            const json: any =
-              await response.json();
-
-
-            const list =
-              Array.isArray(json)
-                ? json
-                : (
-                    json?.tokens ??
-                    json?.data ??
-                    []
-                  );
-
-
-            const hit =
-              list.find(
-                (t: any) =>
-                  (
-                    t?.address ||
-                    t?.mint
-                  ) === tokenMint,
-              ) ||
-              list[0];
-
-
-            if (
-              hit &&
-              (
-                hit.address ||
-                hit.mint
-              ) === tokenMint
-            ) {
-              const address =
-                hit.address ||
-                hit.mint;
-
-
-              return {
-                symbol:
-                  hit.symbol ||
-                  tokenMint.slice(0, 4),
-
-                name:
-                  hit.name ||
-                  "Unknown token",
-
-                mint:
-                  address,
-
-                decimals:
-                  Number(
-                    hit.decimals ?? 0,
-                  ),
-
-                logoURI:
-                  hit.logoURI ||
-                  hit.logo_uri ||
-                  "",
-
-                warn:
-                  false,
-
-                source:
-                  "jupiter" as const,
-              };
-            }
-          }
-        } catch {}
-
-
-
-        try {
-          const response =
-            await fetch(
-              RPC(),
-              {
-                method:
-                  "POST",
-
-                headers:
-                  {
-                    "Content-Type":
-                      "application/json",
-                  },
-
-                body:
-                  JSON.stringify({
-                    jsonrpc:
-                      "2.0",
-
-                    id:
-                      1,
-
-                    method:
-                      "getTokenSupply",
-
-                    params:
-                      [
-                        tokenMint,
-                      ],
-                  }),
-              },
-            );
-
-
-          const json: any =
-            await response.json();
-
-
-          const supply =
-            json?.result?.value;
-
-
-          if (
-            supply
-          ) {
-            return {
-              symbol:
-                tokenMint.slice(
-                  0,
-                  4,
-                ),
-
-              name:
-                "Unknown Token",
-
-              mint:
-                tokenMint,
-
-              decimals:
-                supply.decimals,
-
-              logoURI:
-                "",
-
-              warn:
-                true,
-
-              source:
-                "rpc" as const,
-            };
-          }
-        } catch {}
-
-
-
-        throw new Error(
-          "Token not found. Check the mint address.",
-        );
       },
     );
