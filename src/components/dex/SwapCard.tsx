@@ -17,6 +17,7 @@ import {
   getSwapStatus,
   logSwap,
   sendSignedTransaction,
+  simulateSwapTransaction,
 } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import {
@@ -91,6 +92,7 @@ export function SwapCard({
   const swapFn = useServerFn(getJupiterSwap);
   const swapStatusFn = useServerFn(getSwapStatus);
   const sendSignedTransactionFn = useServerFn(sendSignedTransaction);
+  const simulateSwapTransactionFn = useServerFn(simulateSwapTransaction);
   const logSwapFn = useServerFn(logSwap);
 
   const { from, to, fromAmount } = swapState;
@@ -257,6 +259,14 @@ export function SwapCard({
         throw new Error(
           "Jupiter did not return a swap transaction",
         );
+      }
+
+      const simulation = await simulateSwapTransactionFn({
+        data: { swapTransaction },
+      });
+
+      if (!simulation.ok) {
+        throw new Error(simulation.error);
       }
 
       const {
