@@ -245,7 +245,7 @@ function simulationError(
   const detail = `${JSON.stringify(err)} ${logs.join(" ")}`;
 
   if (/AccountNotFound/i.test(detail)) {
-    return "The connected Phantom account is not funded on Solana. Switch to the funded account or deposit SOL, then reconnect.";
+    return "No SOL funds found in this Phantom wallet. Add SOL and try again.";
   }
 
   if (/InsufficientFundsForFee/i.test(detail)) {
