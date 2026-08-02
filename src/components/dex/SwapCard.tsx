@@ -6,7 +6,6 @@ import {
   Loader2,
   Settings2,
   Info,
-  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -28,9 +27,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-
-const PLATFORM_FEE_WALLET =
-  "8FsSKh1dhgPvKTmnKvo9VJwshD3gqq7AbNeqUXaWrPp2";
 
 function friendlyError(raw: string) {
   return raw.length > 160 ? raw.slice(0, 160) + "…" : raw;
@@ -219,11 +215,6 @@ export function SwapCard({
     ).toString();
   }, [quote, to]);
 
-  const priceImpact =
-    quote?.priceImpactPct
-      ? Number(quote.priceImpactPct) * 100
-      : 0;
-
   const executeSwap = async () => {
     if (!quote) {
       toast.error("No quote available");
@@ -317,10 +308,37 @@ export function SwapCard({
           );
       }
 
-      await connection.confirmTransaction(
-        signature,
-        "confirmed",
-      );
+      if (res.lastValidBlockHeight) {
+        const confirmation =
+          await connection.confirmTransaction(
+            {
+              signature,
+              blockhash:
+                tx.message.recentBlockhash,
+              lastValidBlockHeight:
+                res.lastValidBlockHeight,
+            },
+            "confirmed",
+          );
+
+        if (confirmation.value.err) {
+          throw new Error(
+            `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
+          );
+        }
+      } else {
+        const confirmation =
+          await connection.confirmTransaction(
+            signature,
+            "confirmed",
+          );
+
+        if (confirmation.value.err) {
+          throw new Error(
+            `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
+          );
+        }
+      }
 
       await logSwapFn({
         data: {
@@ -383,10 +401,6 @@ export function SwapCard({
       </div>
     );
   }
-
-  const lowLiquidity =
-    to.symbol === "SPDD" ||
-    priceImpact > 3;
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -480,14 +494,6 @@ export function SwapCard({
             : "0.00"}
         </div>
 
-        {lowLiquidity && (
-          <div className="mt-4 text-xs text-yellow-200">
-            <AlertTriangle className="inline h-4 w-4" />
-            {" "}
-            Low liquidity
-          </div>
-        )}
-
         <div className="mt-5 flex gap-3">
           {!walletAddress ? (
             <PhantomButton className="w-full" />
@@ -521,11 +527,6 @@ export function SwapCard({
         </div>
       </div>
 
-      <p className="text-[10px] text-muted-foreground text-center mt-3">
-        Platform fee wallet{" "}
-        {PLATFORM_FEE_WALLET.slice(0, 6)}
-        …
-      </p>
     </div>
   );
 }

@@ -11,14 +11,14 @@ export function PopularPairs({ onSelect }: { onSelect: (from: string, to: string
         </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        {POPULAR_PAIRS.map(({ from, to, vip }) => {
+        {POPULAR_PAIRS.map(({ from, to }) => {
           const a = TOKENS[from];
           const b = TOKENS[to];
           return (
             <button
               key={`${from}-${to}`}
               onClick={() => onSelect("SOL", to)}
-              className={`group glass rounded-2xl p-4 text-left hover:border-primary/50 transition-all hover:-translate-y-0.5 ${vip ? "border-success/40" : ""}`}
+              className="group glass rounded-2xl p-4 text-left hover:border-primary/50 transition-all hover:-translate-y-0.5"
             >
               <div className="flex items-center gap-2">
                 <div className="flex -space-x-2">
@@ -30,14 +30,9 @@ export function PopularPairs({ onSelect }: { onSelect: (from: string, to: string
                   <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:text-primary" />
                   {to}
                 </div>
-                {vip && (
-                  <span className="ml-auto inline-flex items-center rounded-full bg-success/15 text-success border border-success/30 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                    VIP Token
-                  </span>
-                )}
               </div>
               <div className="mt-3 text-xs text-muted-foreground">
-                {vip ? "Hold 1M+ $SPDD for 0.30% fee" : "Tap to swap"}
+                Tap to swap
               </div>
             </button>
           );
