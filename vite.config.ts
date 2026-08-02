@@ -17,6 +17,8 @@ const appViteConfig = {
           );
         }
       },
+      applyToEnvironment: (env: { name: string }) =>
+        env.name === "client",
     } as PluginOption,
     {
       ...nodePolyfills({
