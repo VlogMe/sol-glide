@@ -14,7 +14,9 @@ import { TOKENS, type Token } from "@/lib/tokens";
 import {
   getJupiterQuote,
   getJupiterSwap,
+  getSwapStatus,
   logSwap,
+  sendSignedTransaction,
 } from "@/lib/jupiter.functions";
 import { TokenSelect } from "./TokenSelect";
 import {
@@ -87,6 +89,8 @@ export function SwapCard({
 
   const quoteFn = useServerFn(getJupiterQuote);
   const swapFn = useServerFn(getJupiterSwap);
+  const swapStatusFn = useServerFn(getSwapStatus);
+  const sendSignedTransactionFn = useServerFn(sendSignedTransaction);
   const logSwapFn = useServerFn(logSwap);
 
   const { from, to, fromAmount } = swapState;
@@ -257,7 +261,6 @@ export function SwapCard({
 
       const {
         VersionedTransaction,
-        Connection,
       } = await import("@solana/web3.js");
 
       const txBytes = new Uint8Array(
@@ -270,14 +273,6 @@ export function SwapCard({
       const tx =
         VersionedTransaction.deserialize(
           txBytes,
-        );
-
-      const connection =
-        new Connection(
-          (import.meta as any).env
-            ?.VITE_RPC_URL ??
-            "https://api.mainnet-beta.solana.com",
-          "confirmed",
         );
 
       let signature: string;
@@ -298,46 +293,45 @@ export function SwapCard({
         const signed =
           await provider.signTransaction(tx);
 
-        signature =
-          await connection.sendRawTransaction(
-            signed.serialize(),
-            {
-              skipPreflight: false,
-              maxRetries: 3,
-            },
-          );
+        const sent = await sendSignedTransactionFn({
+          data: {
+            signedTransaction:
+              (globalThis as any).Buffer.from(
+                signed.serialize(),
+              ).toString("base64"),
+          },
+        });
+
+        signature = sent.signature;
       }
 
-      if (res.lastValidBlockHeight) {
-        const confirmation =
-          await connection.confirmTransaction(
-            {
-              signature,
-              blockhash:
-                tx.message.recentBlockhash,
-              lastValidBlockHeight:
-                res.lastValidBlockHeight,
-            },
-            "confirmed",
-          );
+      let confirmed = false;
 
-        if (confirmation.value.err) {
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const status = await swapStatusFn({
+          data: { signature },
+        });
+
+        if (status.state === "failed") {
           throw new Error(
-            `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
+            `Transaction failed: ${status.error}`,
           );
         }
-      } else {
-        const confirmation =
-          await connection.confirmTransaction(
-            signature,
-            "confirmed",
-          );
 
-        if (confirmation.value.err) {
-          throw new Error(
-            `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
-          );
+        if (status.state === "confirmed") {
+          confirmed = true;
+          break;
         }
+
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1500),
+        );
+      }
+
+      if (!confirmed) {
+        throw new Error(
+          `Transaction submitted but confirmation is still pending. Check Solscan: ${signature}`,
+        );
       }
 
       await logSwapFn({
@@ -374,18 +368,18 @@ export function SwapCard({
       setQuote(null);
 
     } catch (e: any) {
-      console.error(
-        "Swap error:",
-        e,
+      const message = String(
+        e?.message || "Swap failed",
       );
+      const rejected =
+        e?.code === 4001 ||
+        /user rejected|rejected the request/i.test(message);
 
-      if (e?.code !== 4001) {
+      if (!rejected) {
+        console.error("Swap error:", e);
         toast.error(
           friendlyError(
-            String(
-              e?.message ||
-              "Swap failed",
-            ),
+            message,
           ),
         );
       }
