@@ -61,6 +61,18 @@ function fromRawAmount(raw: string, decimals: number) {
   return fraction ? `${whole}.${fraction}` : whole;
 }
 
+function toRawAmount(value: string, decimals: number) {
+  const [whole = "0", fraction = ""] = value.split(".");
+  const fractionRaw = fraction
+    .slice(0, decimals)
+    .padEnd(decimals, "0");
+
+  return (
+    BigInt(whole || "0") * (10n ** BigInt(decimals)) +
+    BigInt(fractionRaw || "0")
+  ).toString();
+}
+
 export function SwapCard({
   initialFrom = "SOL",
   initialTo = "USDC",
@@ -139,9 +151,10 @@ export function SwapCard({
       try {
         setLoading(true);
 
-        const raw = BigInt(
-          Math.floor(num * 10 ** from.decimals),
-        ).toString();
+        const raw = toRawAmount(
+          fromAmount,
+          from.decimals,
+        );
 
         const q = await quoteFn({
           data: {
@@ -256,7 +269,7 @@ export function SwapCard({
 
       let rawAmount = BigInt(balance.rawAmount);
 
-      if (from.symbol === "SOL") {
+      if (from.mint === TOKENS.SOL.mint) {
         const reserve = 10_000_000n;
 
         if (rawAmount <= reserve) {
