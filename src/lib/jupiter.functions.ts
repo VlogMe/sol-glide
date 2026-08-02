@@ -238,6 +238,27 @@ const signedTransaction =
       "Invalid signed transaction",
     );
 
+function simulationError(
+  err: unknown,
+  logs: string[],
+) {
+  const detail = `${JSON.stringify(err)} ${logs.join(" ")}`;
+
+  if (/insufficient funds|insufficient lamports/i.test(detail)) {
+    return "Insufficient SOL or token balance for this swap and network fees.";
+  }
+
+  if (/slippage|0x1771|6001/i.test(detail)) {
+    return "The price moved beyond your slippage setting. Refresh the quote and try again.";
+  }
+
+  if (/blockhash not found/i.test(detail)) {
+    return "The swap quote expired. Refresh the quote and try again.";
+  }
+
+  return `Transaction simulation failed: ${JSON.stringify(err)}`;
+}
+
 export const getJupiterQuote =
   createServerFn({
     method: "POST",
@@ -535,6 +556,48 @@ export const sendSignedTransaction =
       );
 
       return { signature: result };
+    });
+
+export const simulateSwapTransaction =
+  createServerFn({
+    method: "POST",
+  })
+    .inputValidator((d: unknown) =>
+      z.object({ swapTransaction: signedTransaction }).parse(d),
+    )
+    .handler(async ({ data }) => {
+      rateLimit("simulate-transaction");
+
+      const result = await solanaRpc<{
+        value: {
+          err: unknown;
+          logs?: string[] | null;
+        };
+      }>(
+        "simulateTransaction",
+        [
+          data.swapTransaction,
+          {
+            encoding: "base64",
+            sigVerify: false,
+            commitment: "processed",
+          },
+        ],
+      );
+
+      const err = result?.value?.err;
+
+      if (err) {
+        return {
+          ok: false as const,
+          error: simulationError(
+            err,
+            result.value.logs ?? [],
+          ),
+        };
+      }
+
+      return { ok: true as const };
     });
 
 export const getSwapStatus =
