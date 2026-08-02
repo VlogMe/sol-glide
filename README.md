@@ -1,8 +1,8 @@
 # SOLPITCH SWAP
 
 A Solana DEX aggregator built on [TanStack Start](https://tanstack.com/start) (React 19 + Vite 7),
-routing swaps through the [Jupiter](https://station.jup.ag/) aggregator API with Phantom wallet
-support and a 0.5% platform fee (0.3% for SPDD VIP holders).
+routing liquid swaps through the [Jupiter](https://station.jup.ag/) aggregator API with Phantom
+wallet support. Platform fees are currently disabled.
 
 ---
 
@@ -32,14 +32,13 @@ TanStack `createServerFn` handlers in `src/lib/jupiter.functions.ts`.
 
 ## Environment variables
 
-All three are **server-side only** — they are read inside server function handlers
+Both are **server-side only** — they are read inside server function handlers
 and never shipped to the browser. Do **not** prefix them with `VITE_`.
 
 | Variable              | Required | Description                                                              |
 | --------------------- | -------- | ------------------------------------------------------------------------ |
-| `SOLANA_RPC_URL`      | Yes      | Solana mainnet RPC endpoint used for balance checks and tx confirmation. |
-| `JUPITER_API_URL`     | Yes      | Jupiter API base URL, e.g. `https://lite-api.jup.ag`.                    |
-| `PLATFORM_FEE_WALLET` | Yes      | Base58 wallet address that receives the platform fee.                    |
+| `SOLANA_RPC_URL`  | Yes      | Solana mainnet RPC endpoint used for transaction confirmation. |
+| `JUPITER_API_URL` | Yes      | Jupiter API base URL, e.g. `https://lite-api.jup.ag`.          |
 
 Accepted aliases (checked in order, first non-empty wins):
 
@@ -129,7 +128,6 @@ Set secrets on the Worker:
 ```bash
 npx wrangler secret put SOLANA_RPC_URL
 npx wrangler secret put JUPITER_API_URL
-npx wrangler secret put PLATFORM_FEE_WALLET
 ```
 
 > On Cloudflare, `process.env` is populated per-request, not at module load.
@@ -146,7 +144,7 @@ Vercel project settings:
 
 - Build command: `NITRO_PRESET=vercel npm run build`
 - Output directory: leave empty (Nitro writes `.vercel/output`)
-- Add the three environment variables above under Settings → Environment Variables
+- Add the two environment variables above under Settings → Environment Variables
 
 ### Node / self-hosted / Docker
 
@@ -171,11 +169,11 @@ src/
 │   ├── DexApp.tsx          page composition
 │   ├── Header.tsx
 │   ├── SwapCard.tsx        quote → sign → send → confirm flow
-│   ├── TokenSelect.tsx     token picker + mint-address search
+│   ├── TokenSelect.tsx     curated liquid-token picker
 │   ├── PopularPairs.tsx
 │   └── PhantomButton.tsx   direct window.solana connect flow
 ├── lib/
-│   ├── jupiter.functions.ts  server functions: quote, swap, VIP check, logging
+│   ├── jupiter.functions.ts  server functions: quote, swap, route checks, logging
 │   ├── tokens.ts             token list and popular pairs
 │   ├── buffer-polyfill.ts    Buffer diagnostics
 │   └── global-buffer-shim.ts injected into pre-bundled deps via esbuild
