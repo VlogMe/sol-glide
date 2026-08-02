@@ -4,8 +4,6 @@ export type Token = {
   mint: string;
   decimals: number;
   logoURI: string;
-  /** true for tokens loaded ad-hoc by mint address (possibly low liquidity / bonding curve) */
-  warn?: boolean;
 };
 
 export const TOKENS: Record<string, Token> = {
@@ -65,13 +63,6 @@ export const TOKENS: Record<string, Token> = {
     decimals: 9,
     logoURI: "https://metadata.jito.network/token/jto/image",
   },
-  SPDD: {
-    symbol: "SPDD",
-    name: "SolPitch (VIP Token)",
-    mint: "C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump",
-    decimals: 6,
-    logoURI: "/__l5e/assets-v1/1a99bfd5-e79a-43ba-b457-b8c8155ee15e/solpitch-logo.png",
-  },
   POPCAT: {
     symbol: "POPCAT",
     name: "Popcat",
@@ -111,11 +102,8 @@ export const TOKENS: Record<string, Token> = {
 
 export const TOKEN_LIST = Object.values(TOKENS);
 
-export const SPDD_MINT = "C99rtU8RADKAUN1f8avP4gkLtZQu3zbZejsCrGBMpump";
-
-export const POPULAR_PAIRS: { from: string; to: string; vip?: boolean }[] = [
+export const POPULAR_PAIRS: { from: string; to: string }[] = [
   { from: "SOL", to: "USDC" },
-  { from: "SOL", to: "SPDD", vip: true },
   { from: "SOL", to: "USDT" },
   { from: "SOL", to: "BONK" },
   { from: "SOL", to: "WIF" },
