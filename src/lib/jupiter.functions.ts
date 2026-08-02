@@ -79,6 +79,9 @@ async function solanaRpc<T>(
 const JUP_UNREACHABLE =
   "Unable to get quote. Please try again.";
 
+const WRAPPED_SOL =
+  "So11111111111111111111111111111111111111112";
+
 // ---------------- RATE LIMIT ----------------
 
 type Bucket = {
@@ -222,6 +225,12 @@ export type QuoteInput =
 
 export type SwapInput =
   z.infer<typeof SwapSchema>;
+
+const WalletBalanceSchema =
+  z.object({
+    owner: mint,
+    tokenMint: mint,
+  });
 
 const signature =
   z.string().regex(
@@ -379,6 +388,142 @@ export const getJupiterQuote =
         return json;
       },
     );
+
+export const getWalletBalance =
+  createServerFn({
+    method: "POST",
+  })
+    .inputValidator((d: unknown) =>
+      WalletBalanceSchema.parse(d),
+    )
+    .handler(async ({ data }) => {
+      rateLimit("wallet-balance");
+
+      const solResult = await solanaRpc<{
+        value: number;
+      }>(
+        "getBalance",
+        [data.owner, { commitment: "confirmed" }],
+      );
+
+      if (data.tokenMint === WRAPPED_SOL) {
+        return {
+          rawAmount: String(solResult.value),
+          solLamports: String(solResult.value),
+        };
+      }
+
+      const tokenResult = await solanaRpc<{
+        value: Array<{
+          account: {
+            data: {
+              parsed?: {
+                info?: {
+                  tokenAmount?: { amount?: string };
+                };
+              };
+            };
+          };
+        }>;
+      }>(
+        "getTokenAccountsByOwner",
+        [
+          data.owner,
+          { mint: data.tokenMint },
+          {
+            encoding: "jsonParsed",
+            commitment: "confirmed",
+          },
+        ],
+      );
+
+      const rawAmount = tokenResult.value.reduce(
+        (total, item) =>
+          total + BigInt(
+            item.account.data.parsed?.info?.tokenAmount?.amount ?? "0",
+          ),
+        0n,
+      );
+
+      return {
+        rawAmount: rawAmount.toString(),
+        solLamports: String(solResult.value),
+      };
+    });
+
+export const searchJupiterToken =
+  createServerFn({
+    method: "POST",
+  })
+    .inputValidator((d: unknown) =>
+      z.object({ tokenMint: mint }).parse(d),
+    )
+    .handler(async ({ data }) => {
+      rateLimit("token-search");
+
+      const response = await fetchWithTimeout(
+        `https://lite-api.jup.ag/tokens/v2/search?query=${encodeURIComponent(data.tokenMint)}`,
+      );
+
+      if (!response.ok) {
+        throw new Error("Unable to search Jupiter tokens right now.");
+      }
+
+      const results = await response.json() as Array<{
+        id?: string;
+        name?: string;
+        symbol?: string;
+        icon?: string;
+        decimals?: number;
+        liquidity?: number;
+      }>;
+
+      const token = results.find(
+        (item) => item.id === data.tokenMint,
+      );
+
+      if (
+        !token ||
+        typeof token.decimals !== "number" ||
+        !token.symbol
+      ) {
+        throw new Error("Jupiter does not recognize this token address.");
+      }
+
+      if (data.tokenMint !== WRAPPED_SOL) {
+        const quoteUrl = new URL(`${JUPITER()}/quote`);
+        quoteUrl.searchParams.set("inputMint", WRAPPED_SOL);
+        quoteUrl.searchParams.set("outputMint", data.tokenMint);
+        quoteUrl.searchParams.set("amount", "1000000");
+        quoteUrl.searchParams.set("slippageBps", "100");
+        quoteUrl.searchParams.set("onlyDirectRoutes", "false");
+        quoteUrl.searchParams.set("asLegacyTransaction", "false");
+
+        const quoteResponse = await fetchWithTimeout(
+          quoteUrl.toString(),
+          { headers: { accept: "application/json" } },
+        );
+        const quote = quoteResponse.ok
+          ? await quoteResponse.json() as any
+          : null;
+
+        if (
+          !quote?.outAmount ||
+          !Array.isArray(quote.routePlan) ||
+          quote.routePlan.length === 0
+        ) {
+          throw new Error("This token does not currently have a liquid Jupiter route.");
+        }
+      }
+
+      return {
+        symbol: token.symbol.toUpperCase(),
+        name: token.name || token.symbol,
+        mint: data.tokenMint,
+        decimals: token.decimals,
+        logoURI: token.icon || "",
+      };
+    });
 
 
 export const getJupiterSwap =
