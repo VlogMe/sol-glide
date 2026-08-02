@@ -452,14 +452,21 @@ export function SwapCard({
         />
 
         <input
-          type="number"
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          aria-label="Amount to swap"
           value={fromAmount}
-          onChange={(e) =>
-            setSwapState((p) => ({
-              ...p,
-              fromAmount: e.target.value,
-            }))
-          }
+          onChange={(e) => {
+            const nextAmount = e.target.value.replace(",", ".");
+
+            if (nextAmount === "" || /^\d*\.?\d*$/.test(nextAmount)) {
+              setSwapState((p) => ({
+                ...p,
+                fromAmount: nextAmount,
+              }));
+            }
+          }}
           className="w-full text-3xl bg-transparent"
           placeholder="0.00"
         />
@@ -511,22 +518,3 @@ export function SwapCard({
                 className="flex-1"
               >
                 {swapping ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  "Swap Now"
-                )}
-              </button>
-            </>
-          )}
-        </div>
-
-        <div className="mt-4 text-xs text-muted-foreground">
-          <Info className="inline h-3 w-3" />
-          {" "}
-          Powered by Jupiter.
-        </div>
-      </div>
-
-    </div>
-  );
-}
