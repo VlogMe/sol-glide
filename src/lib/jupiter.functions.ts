@@ -82,6 +82,70 @@ const JUP_UNREACHABLE =
 const WRAPPED_SOL =
   "So11111111111111111111111111111111111111112";
 
+const TOKEN_NOT_DEX_TRADABLE =
+  "This token is not available for regular DEX trading yet. Its bonding curve may not have completed, or Jupiter cannot verify active DEX liquidity. Try again after the token graduates.";
+
+type JupiterToken = {
+  id?: string;
+  name?: string;
+  symbol?: string;
+  icon?: string;
+  decimals?: number;
+  liquidity?: number;
+  launchpad?: string;
+  graduatedPool?: string;
+  graduatedAt?: string;
+};
+
+async function getJupiterToken(
+  tokenMint: string,
+): Promise<JupiterToken> {
+  let response: Response;
+
+  try {
+    response = await fetchWithTimeout(
+      `https://lite-api.jup.ag/tokens/v2/search?query=${encodeURIComponent(tokenMint)}`,
+    );
+  } catch {
+    throw new Error("Unable to verify this token with Jupiter right now.");
+  }
+
+  if (!response.ok) {
+    throw new Error("Unable to verify this token with Jupiter right now.");
+  }
+
+  const results = await response.json() as JupiterToken[];
+  const token = results.find((item) => item.id === tokenMint);
+
+  if (!token) {
+    throw new Error("Jupiter does not recognize this token address.");
+  }
+
+  return token;
+}
+
+async function ensureRegularDexTradable(
+  tokenMint: string,
+): Promise<JupiterToken | null> {
+  if (tokenMint === WRAPPED_SOL) {
+    return null;
+  }
+
+  const token = await getJupiterToken(tokenMint);
+  const isPumpFunToken = token.launchpad?.toLowerCase() === "pump.fun";
+  const hasGraduated = Boolean(token.graduatedPool || token.graduatedAt);
+  const hasLiquidity =
+    typeof token.liquidity === "number" &&
+    Number.isFinite(token.liquidity) &&
+    token.liquidity > 0;
+
+  if ((isPumpFunToken && !hasGraduated) || !hasLiquidity) {
+    throw new Error(TOKEN_NOT_DEX_TRADABLE);
+  }
+
+  return token;
+}
+
 // ---------------- RATE LIMIT ----------------
 
 type Bucket = {
@@ -461,26 +525,7 @@ export const searchJupiterToken =
     .handler(async ({ data }) => {
       rateLimit("token-search");
 
-      const response = await fetchWithTimeout(
-        `https://lite-api.jup.ag/tokens/v2/search?query=${encodeURIComponent(data.tokenMint)}`,
-      );
-
-      if (!response.ok) {
-        throw new Error("Unable to search Jupiter tokens right now.");
-      }
-
-      const results = await response.json() as Array<{
-        id?: string;
-        name?: string;
-        symbol?: string;
-        icon?: string;
-        decimals?: number;
-        liquidity?: number;
-      }>;
-
-      const token = results.find(
-        (item) => item.id === data.tokenMint,
-      );
+      const token = await ensureRegularDexTradable(data.tokenMint);
 
       if (
         !token ||
@@ -571,6 +616,11 @@ export const getJupiterSwap =
             "Invalid Jupiter quote. Refresh and try again.",
           );
         }
+
+        await Promise.all([
+          ensureRegularDexTradable(cleanQuote.inputMint),
+          ensureRegularDexTradable(cleanQuote.outputMint),
+        ]);
 
 
         const body =
