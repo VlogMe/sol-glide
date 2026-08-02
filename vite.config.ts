@@ -7,6 +7,18 @@ const NITRO_PRESET = process.env.NITRO_PRESET || "cloudflare-module";
 const appViteConfig = {
   plugins: [
     {
+      name: "browser-buffer-resolver",
+      enforce: "pre",
+      resolveId(source: string) {
+        if (source === "buffer" || source === "node:buffer") {
+          return path.resolve(
+            process.cwd(),
+            "node_modules/buffer/index.js",
+          );
+        }
+      },
+    } as PluginOption,
+    {
       ...nodePolyfills({
         include: ["buffer", "process", "util", "stream", "events"],
         globals: {
@@ -14,7 +26,7 @@ const appViteConfig = {
           global: true,
           process: true,
         },
-        protocolImports: false,
+        protocolImports: true,
       }),
       applyToEnvironment: (env: { name: string }) =>
         env.name === "client",
