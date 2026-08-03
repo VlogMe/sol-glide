@@ -84,6 +84,13 @@ export const TOKENS: Record<string, Token> = {
     decimals: 6,
     logoURI: "https://ipfs.io/ipfs/QmNdTtJauw39u4DzGyTaZ35rRx4VgAxqb91wE89zjyHWd2",
   },
+  ONYX: {
+    symbol: "ONYX",
+    name: "Onyx Kitty",
+    mint: "5uHh5i8KUHmu6334mcQpc6FejLuoJQSjJZYPgQ8cpump",
+    decimals: 6,
+    logoURI: "https://ipfs.io/ipfs/bafkreibw4ewc2pi2muwgsnwt3uc6wapmzlsmy24h5if2ta27anysqf4p6i",
+  },
   FARTCOIN: {
     symbol: "FARTCOIN",
     name: "Fartcoin",
@@ -110,5 +117,6 @@ export const POPULAR_PAIRS: { from: string; to: string }[] = [
   { from: "SOL", to: "POPCAT" },
   { from: "SOL", to: "MOODENG" },
   { from: "SOL", to: "PNUT" },
+  { from: "SOL", to: "ONYX" },
   { from: "SOL", to: "JUP" },
 ];
