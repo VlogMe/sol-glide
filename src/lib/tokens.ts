@@ -117,6 +117,8 @@ export const TOKENS: Record<string, Token> = {
 export const TOKEN_LIST = Object.values(TOKENS);
 
 export const POPULAR_PAIRS: { from: string; to: string }[] = [
+  { from: "SOL", to: "TOEZ" },
+  { from: "SOL", to: "ONYX" },
   { from: "SOL", to: "USDC" },
   { from: "SOL", to: "USDT" },
   { from: "SOL", to: "BONK" },
@@ -124,7 +126,5 @@ export const POPULAR_PAIRS: { from: string; to: string }[] = [
   { from: "SOL", to: "POPCAT" },
   { from: "SOL", to: "MOODENG" },
   { from: "SOL", to: "PNUT" },
-  { from: "SOL", to: "ONYX" },
-  { from: "SOL", to: "TOEZ" },
   { from: "SOL", to: "JUP" },
 ];
