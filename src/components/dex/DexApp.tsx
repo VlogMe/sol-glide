@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { PopularPairs } from "./PopularPairs";
@@ -7,6 +7,8 @@ import { searchJupiterToken } from "@/lib/jupiter.functions";
 
 const Header = lazy(() => import("./Header").then((module) => ({ default: module.Header })));
 const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: module.SwapCard })));
+
+const SELECT_OUTPUT_MINT_MESSAGE = "SOLPITCH_SELECT_OUTPUT_MINT";
 
 export function DexApp() {
   const [mounted, setMounted] = useState(false);
@@ -17,37 +19,48 @@ export function DexApp() {
     setMounted(true);
   }, []);
 
+  const selectOutputMint = useCallback(async (rawMint: string) => {
+    const outputMint = rawMint.trim();
+    if (!outputMint) return;
+
+    const existingEntry = Object.entries(TOKENS).find(([, token]) => token.mint === outputMint);
+    if (existingEntry) {
+      setPair({ from: "SOL", to: existingEntry[0] });
+      return;
+    }
+
+    const token = await tokenSearchFn({ data: { tokenMint: outputMint } });
+    const dynamicKey = `MINT:${outputMint}`;
+    TOKENS[dynamicKey] = token;
+    setPair({ from: "SOL", to: dynamicKey });
+  }, [tokenSearchFn]);
+
   useEffect(() => {
     if (!mounted) return;
 
     const outputMint = new URLSearchParams(window.location.search).get("outputMint")?.trim();
     if (!outputMint) return;
 
-    let cancelled = false;
+    void selectOutputMint(outputMint).catch((error) => {
+      console.error("Unable to preload output token", error);
+    });
+  }, [mounted, selectOutputMint]);
 
-    void (async () => {
-      try {
-        const existingEntry = Object.entries(TOKENS).find(([, token]) => token.mint === outputMint);
-        if (existingEntry) {
-          if (!cancelled) setPair({ from: "SOL", to: existingEntry[0] });
-          return;
-        }
+  useEffect(() => {
+    if (!mounted) return;
 
-        const token = await tokenSearchFn({ data: { tokenMint: outputMint } });
-        if (cancelled) return;
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (!data || data.type !== SELECT_OUTPUT_MINT_MESSAGE || typeof data.mint !== "string") return;
 
-        const dynamicKey = `MINT:${outputMint}`;
-        TOKENS[dynamicKey] = token;
-        setPair({ from: "SOL", to: dynamicKey });
-      } catch (error) {
-        console.error("Unable to preload output token", error);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
+      void selectOutputMint(data.mint).catch((error) => {
+        console.error("Unable to select embedded output token", error);
+      });
     };
-  }, [mounted, tokenSearchFn]);
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [mounted, selectOutputMint]);
 
   if (!mounted) {
     return <div className="min-h-screen" />;
