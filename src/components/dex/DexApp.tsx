@@ -53,6 +53,25 @@ export function DexApp() {
     return <div className="min-h-screen" />;
   }
 
+  const embedded = window.self !== window.top || window.location.pathname.startsWith("/widget");
+
+  if (embedded) {
+    return (
+      <>
+        <Toaster theme="dark" position="bottom-right" richColors />
+        <div className="min-h-screen bg-background px-2 py-3">
+          <Suspense fallback={<SwapCardSkeleton />}>
+            <SwapCard
+              key={`${pair.from}-${pair.to}`}
+              initialFrom={pair.from}
+              initialTo={pair.to}
+            />
+          </Suspense>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <Toaster theme="dark" position="bottom-right" richColors />
