@@ -1,6 +1,9 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Toaster } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
 import { PopularPairs } from "./PopularPairs";
+import { TOKENS } from "@/lib/tokens";
+import { searchJupiterToken } from "@/lib/jupiter.functions";
 
 const Header = lazy(() => import("./Header").then((module) => ({ default: module.Header })));
 const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: module.SwapCard })));
@@ -8,10 +11,43 @@ const SwapCard = lazy(() => import("./SwapCard").then((module) => ({ default: mo
 export function DexApp() {
   const [mounted, setMounted] = useState(false);
   const [pair, setPair] = useState({ from: "SOL", to: "USDC" });
+  const tokenSearchFn = useServerFn(searchJupiterToken);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const outputMint = new URLSearchParams(window.location.search).get("outputMint")?.trim();
+    if (!outputMint) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const existingEntry = Object.entries(TOKENS).find(([, token]) => token.mint === outputMint);
+        if (existingEntry) {
+          if (!cancelled) setPair({ from: "SOL", to: existingEntry[0] });
+          return;
+        }
+
+        const token = await tokenSearchFn({ data: { tokenMint: outputMint } });
+        if (cancelled) return;
+
+        const dynamicKey = `MINT:${outputMint}`;
+        TOKENS[dynamicKey] = token;
+        setPair({ from: "SOL", to: dynamicKey });
+      } catch (error) {
+        console.error("Unable to preload output token", error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, tokenSearchFn]);
 
   if (!mounted) {
     return <div className="min-h-screen" />;
